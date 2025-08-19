@@ -1,0 +1,7 @@
+--- /drivers/video/backlight/Makefile	Fri Aug  1 08:41:28 2025
++++ /drivers/video/backlight/Makefile	Fri Aug  1 10:36:09 2025
+@@ -61,3 +61,4 @@
+ obj-$(CONFIG_BACKLIGHT_ARCXCNN) 	+= arcxcnn_bl.o
+ obj-$(CONFIG_BACKLIGHT_RAVE_SP)		+= rave-sp-backlight.o
+ obj-$(CONFIG_BACKLIGHT_LED)		+= led_bl.o
++obj-$(CONFIG_BACKLIGHT_OCP8178)		+= ocp8178_bl.o

@@ -1,0 +1,12 @@
+--- /drivers/power/supply/axp20x_ac_power.c	Fri Aug  1 08:41:28 2025
++++ /drivers/power/supply/axp20x_ac_power.c	Fri Aug  1 10:31:01 2025
+@@ -52,6 +52,9 @@
+ {
+ 	struct axp20x_ac_power *power = devid;
+ 
++	regmap_update_bits(power->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x00);
++	regmap_update_bits(power->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03);
++
+ 	power_supply_changed(power->supply);
+ 
+ 	return IRQ_HANDLED;

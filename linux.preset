@@ -1,0 +1,15 @@
+# mkinitcpio preset file for the '%PKGBASE%' package
+
+ALL_kver="%KERNVER%"
+# ALL_config="/etc/mkinitcpio.conf"   # use system default
+
+# Build both a normal and a fallback image
+PRESETS=('default' 'fallback')
+
+# Normal image (autodetect enabled)
+default_image="/boot/initramfs-%PKGBASE%.img"
+default_options=""
+
+# Fallback image (autodetect disabled → includes most modules)
+fallback_image="/boot/initramfs-%PKGBASE%-fallback.img"
+fallback_options="-S autodetect"

@@ -1,0 +1,15 @@
+# Build directories
+src/
+pkg/
+
+# Built packages
+*.pkg.tar.zst
+*.pkg.tar.xz
+*.pkg.tar.gz
+
+# Logs
+*.log
+
+# Kernel sources and tarballs
+linux-*.tar.*
+*.pkg.tar.*

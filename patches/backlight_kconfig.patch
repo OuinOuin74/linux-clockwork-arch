@@ -1,0 +1,15 @@
+--- /drivers/video/backlight/Kconfig	Fri Aug  1 08:41:28 2025
++++ /drivers/video/backlight/Kconfig	Fri Aug  1 10:34:58 2025
+@@ -501,6 +501,12 @@
+ 	  If you have a LCD backlight adjustable by LED class driver, say Y
+ 	  to enable this driver.
+ 
++config BACKLIGHT_OCP8178
++	tristate "OCP8178 Backlight Driver"
++	depends on GPIOLIB
++	help
++	  If you have an OCP8178, say Y to enable the backlight driver.
++ 
+ endif # BACKLIGHT_CLASS_DEVICE
+ 
+ endmenu
