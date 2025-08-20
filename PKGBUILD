@@ -1,8 +1,8 @@
 pkgbase=linux-rpi-clockwork
-_commit=d0d4af6280bca07e1746a79cdba89681eee93c4c
+_commit=0de779013a11f09c659a391d7f0eb7594fc7944a
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
-pkgver=6.16.0
+pkgver=6.16.1
 pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
@@ -23,10 +23,10 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
   	"overlays.zip"
         linux.preset
 )
-md5sums=('00037c220b6440326711ebbcb7fca0aa'
+md5sums=('b6cf7ef6f28bc72e4356b6dcde640d2a'
          '1c7205600f44209b09ba711fe65f7a81'
          'd23d112de1cc17a087e767c8d72018b7'
-         '3ea20fda805f65c08ec2a7341e762b2a'
+         '27fea267de48b7fe872edbac8af0525e'
          '2fdaf6f2ddb9da70c88018c8ad310906'
          '05fe19cbcefd8462f484dcbc1a7a00e7'
          '64cc5368cab4185899bf6b9f6ac6c628'
@@ -41,7 +41,7 @@ prepare() {
   # apply patches
   for patch in "$srcdir"/patches/*.patch; do
     echo "Applying patch $patch"
-    patch -p1 < "$patch"
+    patch -p1 --fuzz=0 -i "$patch"
   done
 
   echo "==> Copying GPU drivers..."

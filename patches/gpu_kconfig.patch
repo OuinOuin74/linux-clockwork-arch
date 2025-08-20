@@ -1,6 +1,6 @@
 --- /drivers/gpu/drm/panel/Kconfig	Fri Aug  1 08:41:27 2025
 +++ /drivers/gpu/drm/panel/Kconfig	Fri Aug  1 09:23:13 2025
-@@ -105,6 +96,50 @@
+@@ -105,6 +105,50 @@
  	  Say Y here if you want to support for BOE TV101WUM-LL2
  	  WUXGA PANEL DSI Video Mode panel
  
