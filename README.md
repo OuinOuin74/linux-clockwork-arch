@@ -48,6 +48,26 @@ There are two possible methods:
 - Device tree overlays adapted for the uConsole hardware  
 - Packaged as a standard Arch Linux ARM PKGBUILD for easy build & install  
 
+## Extras
+
+This repository also includes useful configuration files for the uConsole:
+
+- **Systemd service**: `extras/systemd/uconsole-speaker-amp.service`  
+  Enables GPIO for the built-in speakers (HP).
+
+- **Xorg config**: `extras/xorg/30-monitor.conf`  
+  Rotates the screen correctly on startup.
+
+You can copy them to the appropriate system directories:
+
+```bash
+# For systemd service
+sudo cp extras/systemd/uconsole-speaker-amp.service /etc/systemd/system/
+sudo systemctl enable --now uconsole-speaker-amp.service
+
+# For Xorg config
+sudo cp extras/xorg/30-monitor.conf /etc/X11/xorg.conf.d/
+
 ## Credits
 
 - [Raspberry Pi Foundation](https://github.com/raspberrypi/linux) for their kernel sources  
