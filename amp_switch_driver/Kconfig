@@ -1,0 +1,13 @@
+# drivers/staging/uconsole/Kconfig
+menu "uConsole helpers"
+
+config SIMPLE_AMPLIFIER_SWITCH
+	tristate "Simple amplifier switch (GPIO jack detect -> amp enable)"
+	depends on OF && GPIOLIB
+	help
+	  Drive one or more amplifier enable GPIOs based on a jack-detect GPIO.
+	  Typical wiring on uConsole:
+	    - sw-gpios      : jack-detect (often active-low)
+	    - outputs-gpios : amplifier enable (often active-high)
+
+endmenu

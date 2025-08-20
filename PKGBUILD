@@ -3,7 +3,7 @@ _commit=0de779013a11f09c659a391d7f0eb7594fc7944a
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 pkgver=6.16.1
-pkgrel=1
+pkgrel=2
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -20,16 +20,18 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "patches.zip"
   	"gpu_driver.zip"
   	"backlight_driver.zip"
+  	"amp_switch_driver.zip"
   	"overlays.zip"
         linux.preset
 )
 md5sums=('b6cf7ef6f28bc72e4356b6dcde640d2a'
          '1c7205600f44209b09ba711fe65f7a81'
          'd23d112de1cc17a087e767c8d72018b7'
-         '27fea267de48b7fe872edbac8af0525e'
+         '58b631a0191f26d1091b1e8107ff791c'
          '2fdaf6f2ddb9da70c88018c8ad310906'
          '05fe19cbcefd8462f484dcbc1a7a00e7'
-         '64cc5368cab4185899bf6b9f6ac6c628'
+         'ba8d0fdbc87a740cce7ab45cac1deb38'
+         '504c2a700c7e9ceaac9f0f957e089a6b'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # setup vars
@@ -41,7 +43,7 @@ prepare() {
   # apply patches
   for patch in "$srcdir"/patches/*.patch; do
     echo "Applying patch $patch"
-    patch -p1 --fuzz=0 -i "$patch"
+    patch -p1 -i "$patch"
   done
 
   echo "==> Copying GPU drivers..."
@@ -49,6 +51,10 @@ prepare() {
 
   echo "==> Copying backlight drivers..."
   cp -v "$srcdir"/backlight_driver/* drivers/video/backlight/
+  
+  echo "==> Copying amp switch drivers..."
+  mkdir drivers/staging/uconsole
+  cp -v "$srcdir"/amp_switch_driver/* drivers/staging/uconsole
   
   echo "==> Copying Clockworkpi overlays..."
   cp -v "$srcdir"/overlays/* arch/arm/boot/dts/overlays/
