@@ -11,8 +11,6 @@ This repository provides a **custom Linux kernel (branch 6.16)** for the **Clock
 - **Target**: [Arch Linux ARM](https://archlinuxarm.org/platforms/armv8/broadcom/raspberry-pi-4)
 - **Platform**: Raspberry Pi CM4 inside the uConsole
 
-Everything works as expected on the ClockworkPi uConsole with Arch Linux ARM.
-
 ## Differences from the Raspberry Pi kernel
 
 Compared to the vanilla Raspberry Pi 6.16 kernel, this custom build includes:
