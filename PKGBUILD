@@ -31,7 +31,7 @@ md5sums=('b6cf7ef6f28bc72e4356b6dcde640d2a'
          '2fdaf6f2ddb9da70c88018c8ad310906'
          '05fe19cbcefd8462f484dcbc1a7a00e7'
          'ba8d0fdbc87a740cce7ab45cac1deb38'
-         '504c2a700c7e9ceaac9f0f957e089a6b'
+         'f8c56f21f086b004456a3dad9cf02713'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # setup vars

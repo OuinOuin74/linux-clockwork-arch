@@ -246,6 +246,9 @@
     		__overlay__ {
         		audio_amplifier: audio-amplifier {
             			compatible = "simple-amplifier-switch";
+            			/* ensure the pins are muxed + pulled as expected */
+				pinctrl-names = "default";
+				pinctrl-0 = <&jack_amp_pins>;
 
             			/* GPIO10 = jack detect, actif bas (1 = ACTIVE_LOW) */
             			sw-gpios = <&gpio 10 1>;
@@ -253,5 +256,15 @@
             			outputs-gpios = <&gpio 11 0>;
         		};
     		};
+	};
+	fragment@14 {
+		target = <&gpio>;
+		__overlay__ {
+			jack_amp_pins: jack_amp_pins {
+				brcm,pins = <10 11>;
+				brcm,function = <0 1>;   /* 10=input, 11=output */
+				brcm,pull = <2 0>;       /* 10 pull-up, 11 none */
+			};
+		};
 	};
 };
