@@ -1,9 +1,9 @@
 pkgbase=linux-rpi-clockwork
-_commit=0de779013a11f09c659a391d7f0eb7594fc7944a
+_commit=8a1508ac5ef7d6e682e85338ed480517a679d48b
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 pkgver=6.16.1
-pkgrel=2
+pkgrel=3
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -24,14 +24,14 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
   	"overlays.zip"
         linux.preset
 )
-md5sums=('b6cf7ef6f28bc72e4356b6dcde640d2a'
+md5sums=('fec86cd48715e924e21f464c13d97280'
          '1c7205600f44209b09ba711fe65f7a81'
          'd23d112de1cc17a087e767c8d72018b7'
          '58b631a0191f26d1091b1e8107ff791c'
-         '2fdaf6f2ddb9da70c88018c8ad310906'
+         'edb571f2a1c0fa619b9da512ab2a8463'
          '05fe19cbcefd8462f484dcbc1a7a00e7'
          'ba8d0fdbc87a740cce7ab45cac1deb38'
-         'f8c56f21f086b004456a3dad9cf02713'
+         '846d96b3bbffd8065bb2ea7473f695ec'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # setup vars

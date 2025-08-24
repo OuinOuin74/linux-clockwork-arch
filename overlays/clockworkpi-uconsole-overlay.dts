@@ -219,7 +219,7 @@
 				reg = <0>;
 				reset-gpio = <&gpio 8 1>;
 				backlight = <&ocp8178_backlight>;
-				rotation = <90>;
+				panel-orientation = "right-up";
 				iovcc-supply = <&reg_aldo2>;
 
 				port {

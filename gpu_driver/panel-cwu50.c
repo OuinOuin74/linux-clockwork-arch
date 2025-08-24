@@ -24,15 +24,16 @@ struct cwu50 {
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 61020,
-	.hdisplay = 720,
-	.hsync_start = 720 + 30,
-	.hsync_end = 720+ 30 + 15,
-	.htotal = 720 + 30 + 15 + 15,
-	.vdisplay = 1280,
-	.vsync_start = 1280 + 8,
-	.vsync_end = 1280 + 8+ 2,
-	.vtotal = 1280 + 8 + 2 + 16,
+    	.clock = 61020,
+    	.hdisplay = 720,
+    	.hsync_start = 720 + 18,
+    	.hsync_end = 720 + 18 + 18,
+    	.htotal = 720 + 18 + 18 + 18,
+    	.vdisplay = 1280,
+    	.vsync_start = 1280 + 8,
+    	.vsync_end = 1280 + 8 + 2,
+    	.vtotal = 1280 + 8 + 2 + 16,
+    	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
 static inline struct cwu50 *panel_to_cwu50(struct drm_panel *panel)
@@ -196,8 +197,8 @@ static void cwu50_init_sequence(struct cwu50 *ctx)
 	dcs_write_seq(0x40,0x1F);
 	dcs_write_seq(0x41,0x1E);
 	dcs_write_seq(0x42,0x0A);
-	dcs_write_seq(0x43,0x08);
-	dcs_write_seq(0x44,0x06);
+	//dcs_write_seq(0x43,0x08);
+	//dcs_write_seq(0x44,0x06);
 	dcs_write_seq(0x45,0x04);
 	dcs_write_seq(0x46,0x02);
 	dcs_write_seq(0x47,0x00);
@@ -262,10 +263,10 @@ static void cwu50_init_sequence(struct cwu50 *ctx)
 	dcs_write_seq(0xE6,0x02);
 	dcs_write_seq(0xE7,0x02);
 }
+
 static int cwu50_init_sequence2(struct cwu50 *ctx)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	int err;
 	dcs_write_seq(0xE0,0x00);
 
 	//--- PASSWORD	----//
@@ -273,7 +274,6 @@ static int cwu50_init_sequence2(struct cwu50 *ctx)
 	dcs_write_seq(0xE2,0x65);
 	dcs_write_seq(0xE3,0xF8);
 	dcs_write_seq(0x80,0x03);//03:4lane 02:3lane 01:2lane
-
 
 	//--- Page1  ----//
 	dcs_write_seq(0xE0,0x01);
@@ -311,8 +311,8 @@ static int cwu50_init_sequence2(struct cwu50 *ctx)
 	dcs_write_seq(0x40,0x04);	//RSO 04h=720, 05h=768, 06h=800
 	dcs_write_seq(0x41,0xA0);	//LN=640->1280 line
 	dcs_write_seq(0x42,0x7F);  //SLT=12.7us
-	dcs_write_seq(0x43,0x10);  //VFP
-	dcs_write_seq(0x44,0x17);  //VBP =24
+	//dcs_write_seq(0x43,0x10);  //VFP
+	//dcs_write_seq(0x44,0x17);  //VBP =24
 	dcs_write_seq(0x45,0x40);
 
 	//dcs_write_seq(0x4A,0x35);//BIST MODE 35:AUTO
@@ -518,11 +518,10 @@ static int cwu50_init_sequence2(struct cwu50 *ctx)
 	dcs_write_seq(0xE0,0x00);
 
 	dcs_write_seq(0x11);// SLPOUT
-	msleep (200);
+	msleep(200);
 
-	dcs_write_seq(0x29);// DSiPON
-	msleep (100);
-
+	dcs_write_seq(0x29);// DISPON
+	msleep(100);
 
 	//--- TE----//
 	dcs_write_seq(0x35,0x00);
@@ -533,8 +532,6 @@ static int cwu50_init_sequence2(struct cwu50 *ctx)
 static int cwu50_disable(struct drm_panel *panel)
 {
 	struct cwu50 *ctx = panel_to_cwu50(panel);
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	int ret;
 
 	if (!ctx->enabled)
 		return 0;
@@ -631,6 +628,7 @@ static int cwu50_prepare(struct drm_panel *panel)
 		dev_err(ctx->dev, "failed to enable vblank TE (%d)\n", ret);
 		return ret;
 	}
+
 	/* Exit sleep mode and power on */
 	if (ctx->is_new_panel)
 		cwu50_init_sequence2(ctx);
@@ -659,8 +657,6 @@ static int cwu50_prepare(struct drm_panel *panel)
 static int cwu50_enable(struct drm_panel *panel)
 {
 	struct cwu50 *ctx = panel_to_cwu50(panel);
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	int ret;
 
 	if (ctx->enabled)
 		return 0;
@@ -719,7 +715,7 @@ static int cwu50_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 
 	ctx->id_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_IN);
 	if (IS_ERR(ctx->id_gpio)) {
@@ -754,7 +750,7 @@ static int cwu50_probe(struct mipi_dsi_device *dsi)
 
 	/*
 	 * Request vci and iovcc regulators when they are defined
-	 * Even though these regulartors may be always-on, we still need
+	 * Even though these regulators may be always-on, we still need
 	 * to ensure that the panel only becomes ready _after_ them.
 	 * This is achieved by bubbling up EPROBE_DEFER from them.
 	 */
