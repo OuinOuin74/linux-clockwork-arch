@@ -39,3 +39,6 @@ dtparam=ant2
 
 # Load initramfs built by mkinitcpio
 #initramfs initramfs-linux-rpi-clockwork.img followkernel
+
+# Overclock SD card to 100 MHz (use only with fast cards)
+#dtparam=sd_overclock=100
