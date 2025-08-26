@@ -194,7 +194,7 @@
 				voltage-max-design-microvolt = <4200000>;
 				re-charge-voltage-microvolt = <4000000>;
 				// adjust the following params according to your battery specs
-				voltage-min-design-microvolt = <3300000>;
+				voltage-min-design-microvolt = <3100000>;
 				charge-full-design-microamp-hours = <6700000>; // 2x3350mAh fallback value
 				nominal-microvolt = <3700000>;
 			};
