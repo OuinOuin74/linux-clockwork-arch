@@ -195,10 +195,15 @@
 				re-charge-voltage-microvolt = <4000000>;
 				// adjust the following params according to your battery specs
 				voltage-min-design-microvolt = <3300000>;
-				energy-full-design-microwatt-hours = <24790000>; // 2x3350mAh * 3.7v
-				charge-full-design-microamp-hours = <6700000>; // 2x3350mAh
+				charge-full-design-microamp-hours = <6700000>; // 2x3350mAh fallback value
+				nominal-microvolt = <3700000>;
 			};
 		};
+	};
+	
+	__overrides__ {
+    		batt_uah = <&battery>,"charge-full-design-microamp-hours:0";
+    		vnom_uv  = <&battery>,"nominal-microvolt:0";
 	};
 
 	fragment@11 {
@@ -265,6 +270,17 @@
 				brcm,function = <0 1>;   /* 10=input, 11=output */
 				brcm,pull = <2 0>;       /* 10 pull-up, 11 none */
 			};
+		};
+	};
+	/* === NEW: enable UHS on SD host and raise max-frequency to 100 MHz === */
+	fragment@15 {
+		target-path = "/emmc2bus/mmc@7e340000";
+		__overlay__ {
+			cap-sd-highspeed;
+			sd-uhs-sdr50;
+			sd-uhs-sdr104;
+			sd-uhs-ddr50;
+			max-frequency = <100000000>; /* 100 MHz */
 		};
 	};
 };

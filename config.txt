@@ -1,5 +1,31 @@
-#dtoverlay=clockworkpi-devterm
+# ============================================================
+# ClockworkPi uConsole - boot configuration
+# ============================================================
+
+# 1) Default overlay, no parameter override
+#    (uses the default values compiled in the overlay)
 dtoverlay=clockworkpi-uconsole
+
+# 2) Override only the battery capacity (full charge design value)
+#    Here: 7000000 µAh instead of the default 6700000
+#dtoverlay=clockworkpi-uconsole,batt_uah=7000000
+
+# 3) Override both battery capacity and nominal voltage
+#    Useful if you want to adapt the reporting to a different cell chemistry
+#dtoverlay=clockworkpi-uconsole,batt_uah=7000000,vnom_uv=3700000
+
+# Note:
+# - batt_uah is in microamp-hours (µAh)
+# - vnom_uv is in microvolts (µV)
+# - You can duplicate or comment/uncomment lines above depending
+#   on which configuration you want to test.
+# - Only the *last* overlay line for the same overlay is effective
+#   (the firmware uses the last occurrence).
+# ============================================================
+
+
+# --- Standard Raspberry Pi firmware options (needed for uConsole) ---
+
 dtoverlay=vc4-kms-v3d-pi4,cma-384
 dtparam=spi=on
 enable_uart=1
@@ -8,11 +34,8 @@ max_framebuffers=2
 disable_overscan=1
 dtparam=audio=on
 dtoverlay=audremap,pins_12_13
-dtoverlay=dwc2,dr_mode=host
+otg_mode=1
 dtparam=ant2
 
 # Load initramfs built by mkinitcpio
 #initramfs initramfs-linux-rpi-clockwork.img followkernel
-
-##only edit the section of the pi you have, other section will be ignored.
-##if you have a devterm uncomment devterm and comment out entries with uconsole.

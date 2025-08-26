@@ -1,26 +1,46 @@
---- /drivers/power/supply/axp20x_battery.c	Fri Aug  1 08:41:28 2025
-+++ /drivers/power/supply/axp20x_battery.c	Fri Aug  1 10:26:29 2025
-@@ -81,6 +81,10 @@
+--- a/drivers/power/supply/axp20x_battery.c
++++ b/drivers/power/supply/axp20x_battery.c
+@@ -29,10 +29,12 @@
+ #include <linux/slab.h>
+ #include <linux/time.h>
+ #include <linux/iio/iio.h>
+ #include <linux/iio/consumer.h>
+ #include <linux/mfd/axp20x.h>
++#include <linux/math64.h>    /* div_s64() */
++#include <linux/kernel.h>    /* clamp_t() */
+ 
+ #define AXP20X_PWR_STATUS_BAT_CHARGING	BIT(2)
+ #define AXP717_PWR_STATUS_MASK		GENMASK(6, 5)
+ #define AXP717_PWR_STATUS_BAT_STANDBY	0
+ #define AXP717_PWR_STATUS_BAT_CHRG	1
+@@ -79,19 +81,23 @@
+ #define AXP717_ITERM_CC_STEP		64000
+ 
  #define AXP20X_V_OFF_MASK		GENMASK(2, 0)
  #define AXP717_V_OFF_MASK		GENMASK(6, 4)
  
-+#define AXP228_FULL_CAPACITY_CALIBRATE_EN BIT(5)
-+#define AXP228_CAPACITY_CALIBRATE BIT(4)
-+#define AXP228_CALIBRATE_MASK (BIT(4) | BIT(5))
++#define AXP228_FULL_CAPACITY_CALIBRATE_EN	BIT(5)
++#define AXP228_CAPACITY_CALIBRATE 			BIT(4)
++#define AXP228_CALIBRATE_MASK 				(BIT(4) | BIT(5))
 +
  #define AXP717_BAT_VMIN_MIN_UV		2600000
  #define AXP717_BAT_VMIN_MAX_UV		3300000
  #define AXP717_BAT_VMIN_STEP		100000
-@@ -89,8 +93,6 @@
+ #define AXP717_BAT_CV_MIN_UV		4000000
+ #define AXP717_BAT_CV_MAX_UV		5000000
  #define AXP717_BAT_CC_MIN_UA		0
  #define AXP717_BAT_CC_MAX_UA		3008000
  
 -#define AXP717_TS_PIN_DISABLE		BIT(4)
--
++
+ 
  struct axp20x_batt_ps;
  
  struct axp_data {
-@@ -118,8 +120,10 @@
+ 	int		ccc_scale;
+@@ -116,14 +122,66 @@ struct axp20x_batt_ps {
+ 	struct iio_channel *batt_chrg_i;
+ 	struct iio_channel *batt_dischrg_i;
  	struct iio_channel *batt_v;
  	/* Maximum constant charge current */
  	unsigned int max_ccc;
@@ -31,21 +51,127 @@
 -	bool ts_disable;
  };
  
++/* --------------------------------------------------------------------------
++ * Helpers to read battery voltage/current from IIO in micro-units.
++ * We use iio_read_channel_processed_scale(..., &x, 1000) so that:
++ *   - IIO returns processed values in mV/mA,
++ *   - the 'scale=1000' promotes them to µV/µA as power_supply expects.
++ * -------------------------------------------------------------------------- */
++
++static int axp_read_batt_voltage_uV(struct axp20x_batt_ps *axp20x_batt, s64 *out_uv)
++{
++	int ret, uv;
++
++	if (!axp20x_batt->batt_v)
++		return -ENODEV;
++
++	ret = iio_read_channel_processed_scale(axp20x_batt->batt_v, &uv, 1000);
++	if (ret)
++		return ret;
++
++	*out_uv = (s64)uv;  /* already in microvolts */
++	return 0;
++}
++
++/* Returns +current when charging, -current when discharging, in microamps. */
++static int axp_read_batt_current_uA(struct axp20x_batt_ps *axp20x_batt, s64 *out_ua)
++{
++	int ret, ua;
++
++	/* Try charge-current channel first (positive while charging). */
++	if (axp20x_batt->batt_chrg_i) {
++		ret = iio_read_channel_processed_scale(axp20x_batt->batt_chrg_i, &ua, 1000);
++		if (ret == 0 && ua > 0) {
++			*out_ua = (s64)ua;   /* µA */
++			return 0;
++		}
++	}
++
++	/* Fallback: discharge-current channel (positive -> make it negative). */
++	if (axp20x_batt->batt_dischrg_i) {
++		ret = iio_read_channel_processed_scale(axp20x_batt->batt_dischrg_i, &ua, 1000);
++		if (ret == 0 && ua > 0) {
++			*out_ua = -((s64)ua); /* µA, negative while discharging */
++			return 0;
++		}
++	}
++
++	/* No valid reading -> report zero (harmless for userspace). */
++	*out_ua = 0;
++	return 0;
++}
++
  static int axp20x_battery_get_max_voltage(struct axp20x_batt_ps *axp20x_batt,
-@@ -369,6 +373,8 @@
- 		if (ret)
+ 					  int *val)
+ {
+ 	int ret, reg;
+ 
+@@ -277,10 +335,11 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
+ 				   enum power_supply_property psp,
+ 				   union power_supply_propval *val)
+ {
+ 	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
+ 	int ret = 0, reg, val1;
++	s64 v_uv = 0, i_ua = 0, p_uw;
+ 
+ 	switch (psp) {
+ 	case POWER_SUPPLY_PROP_PRESENT:
+ 	case POWER_SUPPLY_PROP_ONLINE:
+ 		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE,
+@@ -350,27 +409,20 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
+ 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+ 		val->intval = axp20x_batt->max_ccc;
+ 		break;
+ 
+ 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+-		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_INPUT_STATUS,
+-				  &reg);
+-		if (ret)
++		i_ua = 0;
++		ret = axp_read_batt_current_uA(axp20x_batt, &i_ua);
++		if (ret < 0)
  			return ret;
  
-+		axp20x_batt->current_now = val->intval;
-+
+-		/* IIO framework gives mA but Power Supply framework gives uA */
+-		if (reg & AXP20X_PWR_STATUS_BAT_CHARGING) {
+-			ret = iio_read_channel_processed_scale(axp20x_batt->batt_chrg_i,
+-							       &val->intval, 1000);
+-		} else {
+-			ret = iio_read_channel_processed_scale(axp20x_batt->batt_dischrg_i,
+-							       &val1, 1000);
+-			val->intval = -val1;
+-		}
+-		if (ret)
+-			return ret;
++		/* Keep the sign: + while charging, - while discharging. */
++		axp20x_batt->current_now = (int)clamp_t(s64, i_ua, INT_MIN, INT_MAX);
+ 
++		/* Report in microamps (signed). */
++		val->intval = axp20x_batt->current_now;
  		break;
  
  	case POWER_SUPPLY_PROP_CAPACITY:
-@@ -416,6 +422,63 @@
- 		if (ret)
- 			return ret;
+ 		/* When no battery is present, return capacity is 100% */
+ 		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE,
+@@ -408,16 +460,103 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
  
-+		axp20x_batt->current_now = val->intval;
+ 		val->intval = 2600000 + 100000 * (reg & AXP20X_V_OFF_MASK);
+ 		break;
+ 
+ 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+-		/* IIO framework gives mV but Power Supply framework gives uV */
+-		ret = iio_read_channel_processed_scale(axp20x_batt->batt_v,
+-						 &val->intval, 1000);
++		v_uv = 0;
++		ret = axp_read_batt_voltage_uV(axp20x_batt, &v_uv);
++		if (ret < 0)
++			return ret;
++
++		/* Cache voltage in microvolts (int cache is fine for ~4.2V -> 4_200_000). */
++		axp20x_batt->voltage_now = (int)clamp_t(s64, v_uv, 0, INT_MAX);
++
++		/* Report in microvolts as required by the power_supply core. */
++		val->intval = axp20x_batt->voltage_now;
 +		
 +		break;
 +
@@ -75,9 +201,9 @@
 +		}
 +
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_FG_RES, &reg);
-+		if (ret)
-+			return ret;
-+
+ 		if (ret)
+ 			return ret;
+ 
 +		if (axp20x_batt->data->has_fg_valid && !(reg & AXP22X_FG_VALID))
 +			return -EINVAL;
 +
@@ -90,7 +216,13 @@
 +		break;
 +
 +	case POWER_SUPPLY_PROP_CALIBRATE:
-+		// report both calibrate enable flag and calibration status
++		/*
++                * CALIBRATE (read):
++                * - Return a bitmask of calibration-related flags from CC_CTRL.
++                * - Bitmask is (reg & AXP228_CALIBRATE_MASK).
++                *   Non-zero => calibration enabled/active; zero => disabled.
++                * This is NOT a percentage; it’s a raw flag field exposed to userspace.
++                */
 +		ret = regmap_read(axp20x_batt->regmap, AXP20X_CC_CTRL, &reg);
 +		if (ret)
 +			return ret;
@@ -99,13 +231,38 @@
 +		break;
 +
 +	case POWER_SUPPLY_PROP_POWER_NOW:
-+		val->intval = (axp20x_batt->voltage_now / 10000) *
-+			      axp20x_batt->current_now;
-+		val->intval = val->intval / 100; // uW
++
++		/* Read fresh values (more robust than relying on read order); also refresh caches. */
++		if (axp_read_batt_voltage_uV(axp20x_batt, &v_uv) < 0)
++			v_uv = 0;
++		if (axp_read_batt_current_uA(axp20x_batt, &i_ua) < 0)
++			i_ua = 0;
++
++		axp20x_batt->voltage_now = (int)clamp_t(s64, v_uv, 0, INT_MAX);
++		axp20x_batt->current_now = (int)clamp_t(s64, i_ua, INT_MIN, INT_MAX);
++
++		if (!v_uv || !i_ua) {
++			val->intval = 0;
++			return 0;
++		}
++
++		/* µW = (µV * µA) / 1e6 — use 64-bit to avoid overflow, expose positive to userspace. */
++		p_uw = div_s64(v_uv * i_ua, 1000000LL);
++		if (p_uw < 0)
++			p_uw = -p_uw;
++		if (p_uw > INT_MAX)
++			p_uw = INT_MAX;
++
++		val->intval = (int)p_uw;
++		return 0;
  		break;
  
  	default:
-@@ -771,6 +834,7 @@
+ 		return -EINVAL;
+ 	}
+@@ -769,18 +908,54 @@ static int axp717_set_voltage_min_design(struct axp20x_batt_ps *axp_batt,
+ static int axp20x_battery_set_prop(struct power_supply *psy,
+ 				   enum power_supply_property psp,
  				   const union power_supply_propval *val)
  {
  	struct axp20x_batt_ps *axp20x_batt = power_supply_get_drvdata(psy);
@@ -113,12 +270,31 @@
  
  	switch (psp) {
  	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
-@@ -778,7 +842,17 @@
+ 		return axp20x_set_voltage_min_design(axp20x_batt, val->intval);
  
  	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
  		return axp20x_batt->data->set_max_voltage(axp20x_batt, val->intval);
 -
++		
 +	case POWER_SUPPLY_PROP_CALIBRATE:
++		/*
++		* CALIBRATE control bits (AXP22x / AXP228 fuel gauge):
++		* - AXP228_FULL_CAPACITY_CALIBRATE_EN : enable full-capacity calibration mode
++		* - AXP228_CAPACITY_CALIBRATE         : trigger a calibration cycle
++		*
++		* Userspace contract:
++		*   echo 1 > /sys/class/power_supply/axp20x-battery/calibrate
++		*     => sets both bits, starts calibration
++		*
++		*   echo 0 > /sys/class/power_supply/axp20x-battery/calibrate
++		*     => clears both bits, stops calibration
++		*
++		* Reading the property returns (reg & AXP228_CALIBRATE_MASK).
++		*   0x00 : calibration disabled
++		*   0xC0 : calibration enabled/active
++		*   Other intermediate values may be returned by HW during progress.
++		*/
++
 +		if (val->intval) {
 +			// enable calibrate
 +			val1 = AXP228_FULL_CAPACITY_CALIBRATE_EN |
@@ -127,12 +303,22 @@
 +			// disable calibrate
 +			val1 = 0;
 +		}
++		dev_info(axp20x_batt->dev,
++                        "CALIB:set request=%d (bits=0x%02x mask=0x%02x)\n",
++                        (unsigned int)val->intval,
++                        (unsigned int)val1,
++                        (unsigned int)AXP228_CALIBRATE_MASK);
 +		return regmap_update_bits(axp20x_batt->regmap, AXP20X_CC_CTRL,
 +					  AXP228_CALIBRATE_MASK, val1);
++					  
  	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
  		return axp20x_set_constant_charge_current(axp20x_batt,
  							  val->intval);
-@@ -850,6 +924,11 @@
+ 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+ 		return axp20x_set_max_constant_charge_current(axp20x_batt,
+@@ -848,10 +1023,15 @@ static enum power_supply_property axp20x_battery_props[] = {
+ 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
+ 	POWER_SUPPLY_PROP_HEALTH,
  	POWER_SUPPLY_PROP_VOLTAGE_MAX,
  	POWER_SUPPLY_PROP_VOLTAGE_MIN,
  	POWER_SUPPLY_PROP_CAPACITY,
@@ -144,7 +330,11 @@
  };
  
  static enum power_supply_property axp717_battery_props[] = {
-@@ -873,7 +952,8 @@
+ 	POWER_SUPPLY_PROP_PRESENT,
+ 	POWER_SUPPLY_PROP_ONLINE,
+@@ -871,11 +1051,12 @@ static int axp20x_battery_prop_writeable(struct power_supply *psy,
+ {
+ 	return psp == POWER_SUPPLY_PROP_STATUS ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
  	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX ||
  	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT ||
@@ -154,7 +344,11 @@
  }
  
  static int axp717_battery_prop_writeable(struct power_supply *psy,
-@@ -987,24 +1067,6 @@
+ 					 enum power_supply_property psp)
+ {
+@@ -985,28 +1166,10 @@ static void axp717_set_battery_info(struct platform_device *pdev,
+ 	int vmin = info->voltage_min_design_uv;
+ 	int vmax = info->voltage_max_design_uv;
  	int ccc = info->constant_charge_current_max_ua;
  	int val;
  
@@ -179,46 +373,162 @@
  	if (vmin > 0 && axp717_set_voltage_min_design(axp_batt, vmin))
  		dev_err(&pdev->dev,
  			"couldn't set voltage_min_design\n");
-@@ -1131,6 +1193,29 @@
- 	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
- 		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
- 		power_supply_put_battery_info(axp20x_batt->batt, info);
-+		axp20x_batt->energy_full_design = info->energy_full_design_uwh;
-+
-+		int cfd = info->charge_full_design_uah;
-+
-+		// tell pmic about our battery
-+		if (cfd) {
-+			// [14:8], [7:0], cfd = Value * 1.456mAh
-+			cfd = cfd / 1456;
-+			regmap_update_bits(axp20x_batt->regmap,
-+					   AXP288_FG_DES_CAP0_REG, 0xff,
-+					   cfd & 0xff);
-+			regmap_update_bits(axp20x_batt->regmap,
-+					   AXP288_FG_DES_CAP1_REG, 0xff,
-+					   BIT(7) | ((cfd >> 8) & 0xff));
-+		} else {
-+			dev_warn(axp20x_batt->dev,
-+				 "charge full design is not set");
-+		}
-+	} else {
-+		axp20x_batt->energy_full_design = 8000000;
-+		dev_warn(axp20x_batt->dev,
-+			 "energy full design is not set, default to %d\n",
-+			 axp20x_batt->energy_full_design);
+ 
+ 	if (vmax > 0 && axp717_battery_set_max_voltage(axp_batt, vmax))
+@@ -1126,21 +1289,150 @@ static int axp20x_power_probe(struct platform_device *pdev)
+ 		dev_err(&pdev->dev, "failed to register power supply: %ld\n",
+ 			PTR_ERR(axp20x_batt->batt));
+ 		return PTR_ERR(axp20x_batt->batt);
  	}
  
- 	/*
-@@ -1138,6 +1223,12 @@
- 	 * to current register value by default.
- 	 */
- 	axp20x_get_constant_charge_current(axp20x_batt, &axp20x_batt->max_ccc);
-+
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03);
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_OFF_CTRL, 0x08, 0x08);
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2, 0x30, 0x20);
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_PEK_KEY, 0x0f, 0x0b);
-+	regmap_update_bits(axp20x_batt->regmap, AXP20X_GPIO0_CTRL, 0x07, 0x00);
+-	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
+-		axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
+-		power_supply_put_battery_info(axp20x_batt->batt, info);
++	/* Read battery info from DT/overrides (config.txt via fwnode).
++	 * If this fails, abort the probe (no legacy 8 Wh fallback).
++	 */
++	if (power_supply_get_battery_info(axp20x_batt->batt, &info)) {
++		dev_err(axp20x_batt->dev,
++			"battery info missing from DT; aborting probe\n");
++		return -EINVAL;
+ 	}
  
+-	/*
+-	 * Update max CCC to a valid value if battery info is present or set it
+-	 * to current register value by default.
++	/* ---------------- Sanity checks & helpers ----------------
++	 * Accept a wide but realistic range to tolerate user overrides.
+ 	 */
++	{
++		const int  AXP_BATT_UAH_MIN = 500000;    /* 0.5 Ah  ->   500000 µAh */
++		const int  AXP_BATT_UAH_MAX = 20000000;  /* 20  Ah  -> 20000000 µAh */
++		const u32  AXP_VNOM_UV_MIN  = 3000000;   /* 3.0 V (µV) */
++		const u32  AXP_VNOM_UV_MAX  = 4200000;   /* 4.2 V (µV) */
++
++		u32 vnom_uv = 3700000; /* default nominal voltage = 3.7 V (in µV) */
++		struct device_node *bat_np;
++
++		/* Try to read nominal-microvolt from the battery node (optional).
++		 * Used only if we need to derive energy from charge.
++		 */
++		bat_np = of_parse_phandle(axp20x_batt->dev->of_node,
++					  "monitored-battery", 0);
++		if (!bat_np)
++			bat_np = axp20x_batt->dev->of_node;
++		if (bat_np)
++			of_property_read_u32(bat_np, "nominal-microvolt", &vnom_uv);
++
++		if (vnom_uv < AXP_VNOM_UV_MIN || vnom_uv > AXP_VNOM_UV_MAX) {
++			dev_warn(axp20x_batt->dev,
++				 "nominal-microvolt out of range: %u uV, forcing 3700000 uV\n",
++				 vnom_uv);
++			vnom_uv = 3700000U;
++		}
++
++		/* Reject nonsensical charge_full since user can override via config.txt */
++		if (info->charge_full_design_uah &&
++		    (info->charge_full_design_uah < AXP_BATT_UAH_MIN ||
++		     info->charge_full_design_uah > AXP_BATT_UAH_MAX)) {
++			dev_warn(axp20x_batt->dev,
++				 "charge-full-design %d uAh out of range [%d..%d], ignoring\n",
++				 info->charge_full_design_uah,
++				 AXP_BATT_UAH_MIN, AXP_BATT_UAH_MAX);
++			info->charge_full_design_uah = 0;
++		}
++
++		/* ---------------- Design energy selection ----------------
++		 * 1) If DT provides energy_full_design_uwh -> use it as-is.
++		 * 2) Else, if charge_full_design_uah is provided -> derive:
++		 *      energy_full_design_uwh = (µAh * µV) / 1e6
++		 * 3) Else -> leave design energy unset (no 8 Wh fallback).
++		 */
++		if (info->energy_full_design_uwh > 0) {
++			axp20x_batt->energy_full_design = info->energy_full_design_uwh;
++			dev_info(axp20x_batt->dev,
++				 "using DT energy_full_design: %d uWh\n",
++				 axp20x_batt->energy_full_design);
++		} else if (info->charge_full_design_uah > 0) {
++			u64 uwh = (u64)info->charge_full_design_uah * (u64)vnom_uv;
++			uwh /= 1000000ULL; /* (µAh × µV) -> µWh */
++
++			if (uwh > INT_MAX)
++				uwh = INT_MAX;
++
++			info->energy_full_design_uwh   = (int)uwh;
++			axp20x_batt->energy_full_design = info->energy_full_design_uwh;
++
++			dev_info(axp20x_batt->dev,
++				 "derived energy_full_design: %d uWh (cap=%d uAh, Vnom=%u uV)\n",
++				 info->energy_full_design_uwh,
++				 info->charge_full_design_uah, vnom_uv);
++		} else {
++			axp20x_batt->energy_full_design = 0;
++			dev_warn(axp20x_batt->dev,
++				 "no energy_full and no charge_full provided; design energy left unset\n");
++		}
++	}
++
++	/* -------------- Program PMIC designed capacity --------------
++	 * AXP288 encoding: raw = uAh / 1456.
++	 * - low byte -> AXP288_FG_DES_CAP0_REG
++	 * - high byte -> AXP288_FG_DES_CAP1_REG with BIT(7) set
++	 * This helps the internal fuel gauge estimation.
++	 */
++	if (info->charge_full_design_uah > 0) {
++		u16 raw = (u16)(info->charge_full_design_uah / 1456);
++		int ret0, ret1;
++
++		ret0 = regmap_update_bits(axp20x_batt->regmap,
++					  AXP288_FG_DES_CAP0_REG, 0xff,
++					  raw & 0xff);
++		ret1 = regmap_update_bits(axp20x_batt->regmap,
++					  AXP288_FG_DES_CAP1_REG, 0xff,
++					  BIT(7) | ((raw >> 8) & 0xff));
++
++		if (!ret0 && !ret1) {
++			unsigned int lo = 0, hi = 0;
++			u16 rb = 0;
++			u32 confirmed_uah = 0;
++
++			if (!regmap_read(axp20x_batt->regmap,
++					 AXP288_FG_DES_CAP0_REG, &lo) &&
++			    !regmap_read(axp20x_batt->regmap,
++					 AXP288_FG_DES_CAP1_REG, &hi)) {
++				rb = ((hi & 0x7f) << 8) | (lo & 0xff);
++				confirmed_uah = (u32)rb * 1456U;
++				dev_info(axp20x_batt->dev,
++					 "AXP20x: programmed design capacity %u uAh (raw=0x%03x)\n",
++					 confirmed_uah, rb);
++			} else {
++				dev_info(axp20x_batt->dev,
++					 "AXP20x: programmed design capacity %d uAh\n",
++					 info->charge_full_design_uah);
++			}
++		} else {
++			dev_err(axp20x_batt->dev,
++				"AXP20x: failed to program design capacity (%d,%d)\n",
++				ret0, ret1);
++		}
++	} else {
++		dev_warn(axp20x_batt->dev,
++			 "charge_full_design_uah not provided; PMIC design capacity not programmed\n");
++	}
++
++	/* Apply (possibly adjusted) battery info to the power_supply and release it */
++	axp20x_batt->data->set_bat_info(pdev, axp20x_batt, info);
++	power_supply_put_battery_info(axp20x_batt->batt, info);
++
++	/* Keep original board/PMIC init */
+ 	axp20x_get_constant_charge_current(axp20x_batt, &axp20x_batt->max_ccc);
+ 
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_VBUS_IPSOUT_MGMT, 0x03, 0x03);
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_OFF_CTRL,        0x08, 0x08);
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL2,      0x30, 0x20);
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_PEK_KEY,         0x0f, 0x0b);
++	regmap_update_bits(axp20x_batt->regmap, AXP20X_GPIO0_CTRL,      0x07, 0x00);
++
  	return 0;
  }
+ 
+ static struct platform_driver axp20x_batt_driver = {
+ 	.probe    = axp20x_power_probe,
