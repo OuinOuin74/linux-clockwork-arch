@@ -11,6 +11,18 @@ This repository provides a **custom Linux kernel (branch 6.16)** for the **Clock
 - **Target**: [Arch Linux ARM](https://archlinuxarm.org/platforms/armv8/broadcom/raspberry-pi-4)  
 - **Platform**: Raspberry Pi CM4 inside the uConsole  
 
+## Features
+
+- Based on the Raspberry Pi kernel branch 6.16.y  
+- Includes ClockworkPi-specific patches and drivers  
+- Device tree overlays adapted for the uConsole hardware  
+- Automatic **speaker cutoff when headphones are plugged in**  
+- Ability to **specify battery design capacity (µAh) and nominal voltage (µV)** in `config.txt`  
+  - Example: `dtoverlay=clockworkpi-uconsole,batt_uah=7000000,vnom_uv=3700000`  
+- Ability to **overclock the SD card to 100 MHz** via overlay  
+  - Example: `dtparam=sd_overclock=100`  
+- Packaged as a standard Arch Linux ARM PKGBUILD for easy build & install
+
 ## Differences from the Raspberry Pi kernel
 
 Compared to the vanilla Raspberry Pi 6.16 kernel, this custom build includes:
@@ -42,9 +54,25 @@ Set up a chroot environment on your x86_64 host and install the kernel package d
 See the ArchWiki for detailed instructions:  
 👉 [Chrooting into arm/arm64 environment from x86_64](https://wiki.archlinux.org/title/QEMU#Chrooting_into_arm/arm64_environment_from_x86_64)
 
-Once inside the chroot, install the packages normally:
+**Once inside the chroot :**
+
+- Remove default Arch ARM kernel/boot packages (if present):
 ```bash
-pacman -U /path/to/linux-uconsole-<ver>-<rel>-aarch64.pkg.tar.zst          /path/to/linux-uconsole-headers-<ver>-<rel>-aarch64.pkg.tar.zst
+pacman -Rns linux-aarch64 uboot-raspberrypi
+```
+> This project boots via the Raspberry Pi firmware + custom kernel;
+> the stock `linux-aarch64` and `uboot-raspberrypi` are not needed and can
+> conflict with files in `/boot` or initramfs hooks.
+
+- Then install the packages normally:
+```bash
+pacman -U /path/to/linux-uconsole-<ver>-<rel>-aarch64.pkg.tar.zst \
+         /path/to/linux-uconsole-headers-<ver>-<rel>-aarch64.pkg.tar.zst
+```
+
+- Edit `/boot/config.txt` and uncomment (or add) the initramfs line:
+```ini
+initramfs initramfs-linux-rpi-clockwork.img followkernel
 ```
 
 #### B) “Raw copy” (manual file copy)
@@ -65,21 +93,13 @@ Use the `config.txt` provided in the package (located under `/boot`).
 Typical content for the uConsole is:
 
 ```ini
-#dtoverlay=clockworkpi-devterm
-dtoverlay=clockworkpi-uconsole
-dtoverlay=vc4-kms-v3d-pi4,cma-384
-dtparam=spi=on
-enable_uart=1
-ignore_lcd=1
-max_framebuffers=2
-disable_overscan=1
-dtparam=audio=on
-dtoverlay=audremap,pins_12_13
-dtoverlay=dwc2,dr_mode=host
+...
+otg_mode=1
 dtparam=ant2
 
 # Load initramfs built by mkinitcpio
 #initramfs initramfs-linux-rpi-clockwork.img followkernel
+...
 ```
 
 If you installed via chroot, pacman generates the initramfs.  
@@ -95,40 +115,24 @@ Leave the line commented (`#initramfs ...`) for the first boot.
 
 If you used the raw copy method:
 
-Boot the uConsole (the kernel should start without initramfs).  
+Boot the uConsole (the kernel should start without initramfs).
 
-Once in the system, reinstall the kernel package properly with pacman to generate the initramfs:
+- On the first boot, remove default Arch ARM kernel/boot packages (if present):
+```bash
+sudo pacman -Rns linux-aarch64 uboot-raspberrypi
+```
+
+- Then install the custom kernel package properly with pacman to generate the initramfs:
 ```bash
 sudo pacman -U /path/to/linux-uconsole-<ver>-<rel>-aarch64.pkg.tar.zst
 ```
 
-Edit `/boot/config.txt` and uncomment the initramfs line:
+- Edit `/boot/config.txt` and uncomment (or add) the initramfs line:
 ```ini
 initramfs initramfs-linux-rpi-clockwork.img followkernel
 ```
 
 Reboot.
-
-## Features
-
-- Based on the Raspberry Pi kernel branch 6.16.y  
-- Includes ClockworkPi-specific patches and drivers  
-- Device tree overlays adapted for the uConsole hardware  
-- Automatic **speaker cutoff when headphones are plugged in**  
-- Packaged as a standard Arch Linux ARM PKGBUILD for easy build & install  
-
-## Extras
-
-This repository also includes useful configuration files for the uConsole:
-
-- **Xorg config**: `extras/xorg/30-monitor.conf`  
-  Rotates the screen correctly on startup.
-
-Copy it to the appropriate system directory:
-
-```bash
-sudo cp extras/xorg/30-monitor.conf /etc/X11/xorg.conf.d/
-```
 
 ## Credits
 
