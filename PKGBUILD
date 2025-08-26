@@ -18,15 +18,15 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         cmdline.txt
         config.txt
         "patches.zip"
-  	"gpu_driver.zip"
-  	"backlight_driver.zip"
-  	"amp_switch_driver.zip"
-  	"overlays.zip"
+        "gpu_driver.zip"
+        "backlight_driver.zip"
+        "amp_switch_driver.zip"
+        "overlays.zip"
         linux.preset
 )
 md5sums=('fec86cd48715e924e21f464c13d97280'
          '1c7205600f44209b09ba711fe65f7a81'
-         '2dad8a91d03b4c4ed36651087c196ba2'
+         '2344342c2be0c6bd352519303f865792'
          '1ac397a44b3f69b997c652dc7d097447'
          'edb571f2a1c0fa619b9da512ab2a8463'
          '05fe19cbcefd8462f484dcbc1a7a00e7'
