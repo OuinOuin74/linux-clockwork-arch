@@ -1,9 +1,9 @@
 pkgbase=linux-rpi-clockwork
-_commit=8a1508ac5ef7d6e682e85338ed480517a679d48b
+_commit=eb6c9ef7df46c8bb124c3dc798628ffa1438dc55
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
-pkgver=6.16.1
-pkgrel=5
+pkgver=6.16.3
+pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -24,7 +24,7 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "overlays.zip"
         linux.preset
 )
-md5sums=('fec86cd48715e924e21f464c13d97280'
+md5sums=('70b2572ac1996daa1bee8156b60bda49'
          '1c7205600f44209b09ba711fe65f7a81'
          '2344342c2be0c6bd352519303f865792'
          '557564e0bb7cf16ae9a3205cfff3a786'
