@@ -4,104 +4,142 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/rp1.h>
 
+/* ClockworkPi uConsole overlay for Raspberry Pi CM5 (BCM2712 + RP1)
+ * - AXP22x PMIC on i2c-gpio (RP1 GPIO0/1)
+ * - Simple-battery node with config overrides (capacity/nominal voltage)
+ * - Backlight OCP8178 on RP1 GPIO9
+ * - CWU50 panel on DSI1 (with assigned clocks)
+ * - Audio amplifier switch (jack detect + HP enable) on RP1 GPIO10/11
+ *
+ * Notes:
+ * - Keep this overlay Pi5-only (RP1 labels). Your CM4 overlay stays separate.
+ * - Do NOT load dtoverlay=dwc2 on Pi5.
+ */
 
-/ {
+ /{
 	compatible = "brcm,bcm2835";
+
+	/* ===== PMIC: AXP22x via bit-banged I2C on RP1 GPIO0/1 ===== */
 	fragment@0 {
 		target = <&i2c0>;
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			/* Use i2c-gpio so we can place SCL/SDA on RP1 GPIO 0/1 */
 			compatible = "i2c-gpio";
 			reg = <3>;
 			pinctrl-0 = <&i2c0_pins>;
 			pinctrl-names = "default";
-			gpios = <&rp1_gpio 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)
-					&rp1_gpio 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+			/* SCL = RP1 GPIO0, SDA = RP1 GPIO1, both open-drain/high-active */
+			gpios = <&rp1_gpio 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)
+				 &rp1_gpio 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+
 			i2c-gpio,delay-us = <2>;
 			status = "okay";
+
 			axp22x: pmic@34 {
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				compatible = "x-powers,axp228", "x-powers,axp223", "x-powers,axp221";
 				reg = <0x34>;
+
+				/* PMIC IRQ on RP1 GPIO2, falling-edge */
 				interrupt-parent = <&rp1_gpio>;
-				interrupts = <2 8>; /* Adjusted IRQ for RP1 */
-				irq-gpios = <&rp1_gpio 2 0>;
+				interrupts = <2 8>;
+				irq-gpios = <&rp1_gpio 2 GPIO_ACTIVE_LOW>;
+
 				regulators {
 					x-powers,dcdc-freq = <3000>;
+
 					reg_aldo1: aldo1 {
 						regulator-always-on;
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "audio-vdd";
 					};
+
 					reg_aldo2: aldo2 {
 						regulator-always-on;
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "disp-vcc";
 					};
+
 					reg_aldo3: aldo3 {
 						regulator-boot-off;
 						regulator-name = "wifi-vdd";
 					};
+
 					reg_dldo1: dldo1 {
 						regulator-boot-off;
 						regulator-name = "wifi-vbat-1";
 					};
+
 					reg_dldo2: dldo2 {
 						regulator-always-on;
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "ext-3v3-1";
 					};
+
 					reg_dldo3: dldo3 {
 						regulator-always-on;
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "ext-3v3-2";
 					};
+
 					reg_dldo4: dldo4 {
 						regulator-always-on;
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "ext-3v3-3";
 					};
+
 					reg_dcdc3: dcdc3 {
 						regulator-always-on;
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 						regulator-name = "sys-1v8";
 					};
+
 					reg_eldo1: eldo1 {
 						regulator-boot-off;
 						regulator-name = "wifi-vbat-2";
 					};
+
 					reg_eldo2: eldo2 {
 						regulator-boot-off;
 						regulator-name = "wifi-vbat-3";
 					};
+
 					reg_eldo3: eldo3 {
 						regulator-boot-off;
 						regulator-name = "wifi-vbat-4";
 					};
 				};
+
 				battery_power_supply: battery-power-supply {
 					compatible = "x-powers,axp221-battery-power-supply";
 					monitored-battery = <&battery>;
 				};
+
 				ac_power_supply: ac_power_supply {
 					compatible = "x-powers,axp221-ac-power-supply";
 				};
+
 				usb_power_supply: usb-power {
 					compatible = "x-powers,axp223-usb-power-supply";
 					status = "disabled";
 				};
+
 				axp_adc: adc {
 					compatible = "x-powers,axp221-adc";
 					#io-channel-cells = <1>;
 				};
+
 				axp_gpio: gpio {
 					compatible = "x-powers,axp221-gpio";
 					#gpio-cells = <2>;
@@ -115,21 +153,35 @@
 			};
 		};
 	};
+
+	/* ===== Simple battery node + user-tunable overrides ===== */
 	fragment@1 {
 		target-path = "/";
 		__overlay__  {
 			battery: battery@0 {
 				compatible = "simple-battery";
 				device-chemistry = "lithium-ion";
+
+				/* Charging profile (adjust to your pack) */
 				constant-charge-current-max-microamp = <2100000>;
 				voltage-max-design-microvolt = <4200000>;
 				re-charge-voltage-microvolt = <4000000>;
 				voltage-min-design-microvolt = <2900000>;
-				energy-full-design-microwatt-hours = <24790000>;
+
+				/* Design capacities (2x3350mAh fallback) */
 				charge-full-design-microamp-hours = <6700000>;
+				nominal-microvolt = <3700000>;
 			};
 		};
 	};
+
+	/* Allow tuning from config.txt without rebuilding the dtbo */
+	__overrides__ {
+		batt_uah = <&battery>,"charge-full-design-microamp-hours:0";
+		vnom_uv  = <&battery>,"nominal-microvolt:0";
+	};
+
+	/* ===== Enable RP1 I2C1 (used by board stuff if needed) ===== */
 	fragment@2 {
 		target = <&i2c1>;
 		__overlay__ {
@@ -138,38 +190,54 @@
 			clock-frequency = <100000>;
 		};
 	};
+
+	/* ===== Backlight OCP8178 on RP1 GPIO9 ===== */
 	fragment@3 {
 		target-path = "/";
 		__overlay__ {
 			ocp8178_backlight: backlight@0 {
 				compatible = "ocp8178-backlight";
-				backlight-control-gpios = <&rp1_gpio 9 0>;
+				backlight-control-gpios = <&rp1_gpio 9 GPIO_ACTIVE_HIGH>;
 				default-brightness = <5>;
 			};
 		};
 	};
+
+	/* ===== Panel CWU50 on DSI1 (with assigned clocks) ===== */
 	fragment@4 {
-		target = <&dsi1>; // dsi1 has iommu property
+		/* dsi1 has iommu property on Pi5 */
+		target = <&dsi1>;
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "okay";
+
+			/* These rates work with the CWU50 panel; adjust if needed */
 			assigned-clocks = <&rp1_clocks RP1_CLK_MIPI1_DSI_BYTECLOCK>, <&rp1_clocks RP1_CLK_MIPI1_DPI>;
 			assigned-clock-rates = <45833333>, <61111240>;
+
 			port {
 				dsi_out_port: endpoint {
 					remote-endpoint = <&panel_dsi_port>;
 				};
 			};
+
 			panel_cwu50: panel@0 {
 				compatible = "cw,cwu50";
 				reg = <0>;
-				reset-gpio = <&rp1_gpio 8 1>; /* GPIO_ACTIVE_LOW */
+
+				/* Panel reset on RP1 GPIO8, active-low */
+				reset-gpio = <&rp1_gpio 8 GPIO_ACTIVE_LOW>;
+
 				backlight = <&ocp8178_backlight>;
 				rotation = <90>;
-				vci-supply = <&reg_dcdc3>;
+
+				/* Power rails */
+				vci-supply  = <&reg_dcdc3>;
 				iovcc-supply = <&reg_aldo2>;
+
 				status = "okay";
+
 				port {
 					panel_dsi_port: endpoint {
 						remote-endpoint = <&dsi_out_port>;
@@ -178,7 +246,29 @@
 			};
 		};
 	};
+
+	/* ===== Audio amplifier switch (jack detect + HP enable) =====
+	 * - GPIO10 = jack detect, active-low
+	 * - GPIO11 = HP enable, active-high
+	 */
 	fragment@5 {
+		target-path = "/";
+		__overlay__ {
+			audio_amplifier: audio-amplifier {
+				compatible = "simple-amplifier-switch";
+				pinctrl-names = "default";
+
+				/* Input: low when jack is inserted */
+				sw-gpios = <&rp1_gpio 10 GPIO_ACTIVE_LOW>;
+
+				/* Output: drive high to enable HP amplifier */
+				outputs-gpios = <&rp1_gpio 11 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+
+	/* ===== Disable builtin Ethernet alias (not present on uConsole) ===== */
+	fragment@6 {
 		target-path = "ethernet0";
 		__overlay__ {
 			status = "disabled";
