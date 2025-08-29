@@ -4,15 +4,15 @@
 
 # 1) Default overlay, no parameter override
 #    (uses the default values compiled in the overlay)
-dtoverlay=clockworkpi-uconsole
+dtoverlay=clockworkpi-uconsole-cm4
 
 # 2) Override only the battery capacity (full charge design value)
 #    Here: 7000000 µAh instead of the default 6700000
-#dtoverlay=clockworkpi-uconsole,batt_uah=7000000
+#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000
 
 # 3) Override both battery capacity and nominal voltage
 #    Useful if you want to adapt the reporting to a different cell chemistry
-#dtoverlay=clockworkpi-uconsole,batt_uah=7000000,vnom_uv=3700000
+#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000,vnom_uv=3700000
 
 # Note:
 # - batt_uah is in microamp-hours (µAh)

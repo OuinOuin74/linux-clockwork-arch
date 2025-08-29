@@ -1,16 +1,11 @@
 --- /arch/arm/boot/dts/overlays/Makefile	Fri Aug  1 08:41:25 2025
 +++ /arch/arm/boot/dts/overlays/Makefile	Fri Aug  1 09:23:08 2025
-@@ -42,6 +42,13 @@
+@@ -42,6 +42,8 @@
  	chipcap2.dtbo \
  	chipdip-dac.dtbo \
  	cirrus-wm5102.dtbo \
-+	clockworkpi-custom-battery.dtbo \
-+	clockworkpi-devterm-cm3.dtbo \
-+	clockworkpi-devterm-cm5.dtbo \
-+	clockworkpi-devterm.dtbo \
-+	clockworkpi-uconsole-cm3.dtbo \
 +	clockworkpi-uconsole-cm5.dtbo \
-+	clockworkpi-uconsole.dtbo \
++	clockworkpi-uconsole-cm4.dtbo \
  	cm-swap-i2c0.dtbo \
  	cma.dtbo \
  	crystalfontz-cfa050_pi_m.dtbo \
