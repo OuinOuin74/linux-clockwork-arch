@@ -1,0 +1,84 @@
+name: Build uConsole kernels (CM4 & CM5)
+
+on:
+  push:
+    paths:
+      - 'PKGBUILD'
+      - '*.zip'
+      - '*.preset'
+      - 'config.txt'
+      - 'cmdline.txt'
+  pull_request:
+    paths:
+      - 'PKGBUILD'
+      - '*.zip'
+      - '*.preset'
+      - 'config.txt'
+      - 'cmdline.txt'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [cm4, cm5]   # Two builds: MODEL=cm4 and MODEL=cm5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # If blobs are in Git LFS, enable this
+          lfs: true
+
+      - name: Enable QEMU for arm64 containers
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Arch package (MODEL=${{ matrix.model }})
+        # Runs makepkg inside an Arch container; we inject MODEL env var
+        uses: Menci/build-archlinux-package@beta-v1
+        env:
+          MODEL: ${{ matrix.model }}           # <- read by your PKGBUILD
+          CCACHE_DIR: /github/home/.ccache     # <- share ccache with container
+        with:
+          docker-image: menci/aur-builder-archlinux:latest
+          platform: linux/arm64                # aarch64 build via QEMU
+          pkgbuild-directory: .                # PKGBUILD is at repo root
+          # Ensure unzip/bsdtar are available for your local ZIP sources
+          extra-build-dependencies: >-
+            base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux
+          target-directory: ${{ runner.temp }}/out/${{ matrix.model }}
+          packager: 'uConsole CI <noreply@example.com>'
+          build-log-file: ${{ runner.temp }}/out/${{ matrix.model }}/build-${{ matrix.model }}.log
+
+      - name: Upload artifacts (packages + logs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.model }}-packages
+          path: |
+            ${{ runner.temp }}/out/${{ matrix.model }}/**/*.pkg.tar.*
+            ${{ runner.temp }}/out/${{ matrix.model }}/**/*.log
+
+  # Optional: attach artifacts to a GitHub Release when pushing a tag like v6.16.4-1
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create / Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*/*.pkg.tar.*
+            dist/**/*/*.log
