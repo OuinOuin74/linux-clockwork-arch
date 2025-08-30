@@ -40,44 +40,42 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Arch package (MODEL=${{ matrix.model }})
-        uses: Menci/build-archlinux-package@beta-v1
-        env:
-          MODEL: ${{ matrix.model }}
-          CCACHE_DIR: /github/home/.ccache
+      - name: Build with makepkg inside Arch aarch64
+        uses: uraimo/run-on-arch-action@v2.7.2
         with:
-          docker-image: menci/archlinuxarm:latest
-          platform: linux/arm64
-          pkgbuild-directory: .
-          extra-build-dependencies: >-
-            base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux
-          target-directory: ${{ runner.temp }}/out/${{ matrix.model }}
-          packager: 'uConsole CI <noreply@example.com>'
-          # write log to /tmp: always exists
-          build-log-file: /tmp/build-${{ matrix.model }}.log
+          arch: aarch64
+          distro: archlinux_latest
+          # Mount the repo into the ARM container at /work
+          dockerRunArgs: |
+            -v ${{ github.workspace }}:/work
+          githubToken: ${{ github.token }}
+          setup: |
+            # Refresh keyring early to avoid signature issues
+            pacman -Sy --noconfirm archlinux-keyring
+            # Fully update and install build deps (NO AUR, NO yay)
+            pacman -Syu --noconfirm base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
+            # Create an unprivileged build user for makepkg
+            useradd -m build
+            echo 'build ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/build
+            chown -R build:build /work
+          run: |
+            set -euxo pipefail
+            cd /work
+            # Use ccache if present
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p "$CCACHE_DIR"
+            # Build (reads your MODEL in PKGBUILD)
+            sudo -u build env MODEL=${{ matrix.model }} makepkg -sc --noconfirm
+            # Collect artifacts in a per-model directory
+            mkdir -p /work/out/${{ matrix.model }}
+            mv ./*.pkg.tar.* /work/out/${{ matrix.model }}/ || true
+            # Keep a simple log for each build (optional)
+            : > /work/out/${{ matrix.model }}/build-${{ matrix.model }}.log
 
-      - name: Upload artifacts (packages + logs)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.model }}-packages
           path: |
-            ${{ runner.temp }}/out/${{ matrix.model }}/**/*.pkg.tar.*
-            ${{ runner.temp }}/out/${{ matrix.model }}/**/*.log
-
-  # Optional: attach artifacts to a GitHub Release when pushing a tag like v6.16.4-1
-  release:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-
-      - name: Create / Update Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/**/*/*.pkg.tar.*
-            dist/**/*/*.log
+            out/${{ matrix.model }}/*.pkg.tar.*
+            out/${{ matrix.model }}/*.log
