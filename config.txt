@@ -10,7 +10,6 @@ ignore_lcd=1
 max_framebuffers=2
 disable_overscan=1
 dtparam=audio=on
-dtoverlay=audremap,pins_12_13
 otg_mode=1
 dtparam=ant2
 
@@ -24,8 +23,11 @@ dtoverlay=clockworkpi-uconsole-cm4
 #dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000
 #dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000,vnom_uv=3700000
 
-# KMS for Pi4
+# KMS
 dtoverlay=vc4-kms-v3d-pi4,cma-384
+
+# Audio
+dtoverlay=audremap,pins_12_13
 
 # Kernel + initramfs (cm4)
 kernel=kernel8-cm4.img
@@ -47,8 +49,11 @@ dtoverlay=clockworkpi-uconsole-cm5
 #dtoverlay=clockworkpi-uconsole-cm5,batt_uah=7000000
 #dtoverlay=clockworkpi-uconsole-cm5,batt_uah=7000000,vnom_uv=3700000
 
-# KMS for Pi5
+# KMS
 dtoverlay=vc4-kms-v3d-pi5,cma-384
+
+# Audio
+dtoverlay=audremap-pi5,pins_12_13
 
 # Kernel + initramfs (cm5)
 kernel=kernel8-cm5.img
