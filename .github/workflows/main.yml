@@ -40,30 +40,38 @@ jobs:
       - name: Build (MODEL=${{ matrix.model }})
         uses: addnab/docker-run-action@v3
         with:
-          image: agners/archlinuxarm-arm64v8:latest
+          # arm64v8 image with base-devel preinstalled
+          image: lopsided/archlinux-arm64v8:devel
+          # run the foreign-arch image with QEMU
           options: --platform linux/arm64 -v ${{ github.workspace }}:/work
           run: |
             set -euxo pipefail
-            # Ensure pacman is ready (Arch Linux ARM containers)
+            cd /work
+
+            # Initialize pacman keys (first run can fail without these)
             pacman-key --init
-            pacman-key --populate archlinuxarm || true
-            pacman -Sy --noconfirm archlinuxarm-keyring
-            # Update and install build deps (no AUR helper)
+            pacman-key --populate archlinux || true
+            pacman -Sy --noconfirm archlinux-keyring || true
+
+            # Minimal deps your PKGBUILD needs (devel group is already there)
             pacman -Syu --noconfirm \
-              base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
-            # Create unprivileged build user
+              git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
+
+            # Unprivileged build user for makepkg
             useradd -m build || true
             echo 'build ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/90-build
             chown -R build:build /work
-            # Use ccache (stored in repo to persist across steps of this job)
+
+            # ccache (stored in repo workspace)
             su build -c 'mkdir -p /work/.ccache'
             export CCACHE_DIR=/work/.ccache
-            # Build with your PKGBUILD (reads MODEL in env)
+
+            # Build your two variantes (PKGBUILD lit MODEL)
             su build -c 'cd /work && env MODEL=${{ matrix.model }} makepkg -sc --noconfirm'
-            # Collect artifacts
+
+            # Collect artifacts per model
             mkdir -p /work/out/${{ matrix.model }}
             mv /work/*.pkg.tar.* /work/out/${{ matrix.model }}/ || true
-            # Save a tiny log (optional)
             : > /work/out/${{ matrix.model }}/build-${{ matrix.model }}.log
 
       - name: Upload artifacts
