@@ -52,7 +52,7 @@ jobs:
           install: |
             # Inside the container: install only official packages (no AUR helper)
             pacman -Sy --noconfirm archlinuxarm-keyring || true
-            pacman -Syu --noconfirm base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
+            pacman -Syu --noconfirm base-devel git ccache util-linux
           run: |
             set -euxo pipefail
             cd /work
