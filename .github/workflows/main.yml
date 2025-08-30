@@ -23,56 +23,70 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [cm4, cm5]   # Two builds: MODEL=cm4 and MODEL=cm5
+        model: [cm4, cm5]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # If blobs are in Git LFS, enable this
           lfs: true
 
-      - name: Enable QEMU for arm64 containers
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      - name: Install host-side tools (qemu, proot, bsdtar)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qemu-user-static proot curl ca-certificates xz-utils libarchive-tools
 
-      - name: Build (MODEL=${{ matrix.model }})
-        uses: addnab/docker-run-action@v3
-        with:
-          # arm64v8 image with base-devel preinstalled
-          image: lopsided/archlinux-arm64v8:devel
-          # run the foreign-arch image with QEMU
-          options: --platform linux/arm64 -v ${{ github.workspace }}:/work
-          run: |
-            set -euxo pipefail
-            cd /work
+      - name: Prepare Arch Linux ARM64 rootfs (proot)
+        env:
+          ROOTFS: ${{ runner.temp }}/alaroot
+          ALARM_TARBALL: ArchLinuxARM-aarch64-latest.tar.gz
+        run: |
+          set -euxo pipefail
+          mkdir -p "$ROOTFS"
+          # Download official Arch Linux ARM (aarch64) rootfs
+          curl -L -o "$ALARM_TARBALL" http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+          # Extract with bsdtar to preserve perms/devs properly
+          sudo bsdtar -xpf "$ALARM_TARBALL" -C "$ROOTFS"
+          # Provide qemu-aarch64-static inside the rootfs
+          sudo cp /usr/bin/qemu-aarch64-static "$ROOTFS/usr/bin/"
+          # Basic networking inside chroot (nameserver)
+          echo 'nameserver 1.1.1.1' | sudo tee "$ROOTFS/etc/resolv.conf" >/dev/null
 
-            # Initialize pacman keys (first run can fail without these)
-            pacman-key --init
-            pacman-key --populate archlinux || true
-            pacman -Sy --noconfirm archlinux-keyring || true
+      - name: Bootstrap pacman and build deps inside proot
+        env:
+          ROOTFS: ${{ runner.temp }}/alaroot
+        run: |
+          set -euxo pipefail
+          P="proot -q /usr/bin/qemu-aarch64-static -R $ROOTFS -0 -w /root -b $PWD:/work"
+          # Initialize pacman keyring (Arch Linux ARM)
+          $P /bin/bash -lc "pacman-key --init || true"
+          $P /bin/bash -lc "pacman-key --populate archlinuxarm || true"
+          $P /bin/bash -lc "pacman -Sy --noconfirm archlinuxarm-keyring || true"
+          # Update & install required build tools (no AUR helper)
+          $P /bin/bash -lc "pacman -Syu --noconfirm \
+              base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which"
 
-            # Minimal deps your PKGBUILD needs (devel group is already there)
-            pacman -Syu --noconfirm \
-              git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
+          # Create an unprivileged builder (makepkg refuses root)
+          $P /bin/bash -lc "id -u build >/dev/null 2>&1 || useradd -m build"
+          # Grant passwordless sudo for convenience
+          echo 'build ALL=(ALL) NOPASSWD: ALL' | sudo tee "$ROOTFS/etc/sudoers.d/90-build" >/dev/null
+          sudo chown -R 1000:1000 "$PWD" || true  # 1000: build (best-effort)
 
-            # Unprivileged build user for makepkg
-            useradd -m build || true
-            echo 'build ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/90-build
-            chown -R build:build /work
+      - name: Build with makepkg (MODEL=${{ matrix.model }})
+        env:
+          ROOTFS: ${{ runner.temp }}/alaroot
+        run: |
+          set -euxo pipefail
+          P="proot -q /usr/bin/qemu-aarch64-static -R $ROOTFS -0 -w /home/build -b $PWD:/work"
+          # Use ccache across steps by keeping it in the repo workspace
+          $P /bin/bash -lc "mkdir -p /work/.ccache && chown -R build:build /work"
+          $P /bin/bash -lc "sudo -u build bash -lc 'export CCACHE_DIR=/work/.ccache; cd /work; rm -f ./*.pkg.tar.* || true; env MODEL=${{ matrix.model }} makepkg -sc --noconfirm'"
 
-            # ccache (stored in repo workspace)
-            su build -c 'mkdir -p /work/.ccache'
-            export CCACHE_DIR=/work/.ccache
-
-            # Build your two variantes (PKGBUILD lit MODEL)
-            su build -c 'cd /work && env MODEL=${{ matrix.model }} makepkg -sc --noconfirm'
-
-            # Collect artifacts per model
-            mkdir -p /work/out/${{ matrix.model }}
-            mv /work/*.pkg.tar.* /work/out/${{ matrix.model }}/ || true
-            : > /work/out/${{ matrix.model }}/build-${{ matrix.model }}.log
+          # Collect artifacts
+          mkdir -p out/${{ matrix.model }}
+          mv ./*.pkg.tar.* out/${{ matrix.model }}/ || true
+          : > out/${{ matrix.model }}/build-${{ matrix.model }}.log
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
