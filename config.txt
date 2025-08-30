@@ -2,31 +2,8 @@
 # ClockworkPi uConsole - boot configuration
 # ============================================================
 
-# 1) Default overlay, no parameter override
-#    (uses the default values compiled in the overlay)
-dtoverlay=clockworkpi-uconsole-cm4
-
-# 2) Override only the battery capacity (full charge design value)
-#    Here: 7000000 µAh instead of the default 6700000
-#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000
-
-# 3) Override both battery capacity and nominal voltage
-#    Useful if you want to adapt the reporting to a different cell chemistry
-#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000,vnom_uv=3700000
-
-# Note:
-# - batt_uah is in microamp-hours (µAh)
-# - vnom_uv is in microvolts (µV)
-# - You can duplicate or comment/uncomment lines above depending
-#   on which configuration you want to test.
-# - Only the *last* overlay line for the same overlay is effective
-#   (the firmware uses the last occurrence).
-# ============================================================
-
-
-# --- Standard Raspberry Pi firmware options (needed for uConsole) ---
-
-dtoverlay=vc4-kms-v3d-pi4,cma-384
+[all]
+# Common settings (both CM4/CM5)
 dtparam=spi=on
 enable_uart=1
 ignore_lcd=1
@@ -37,8 +14,51 @@ dtoverlay=audremap,pins_12_13
 otg_mode=1
 dtparam=ant2
 
-# Load initramfs built by mkinitcpio
-#initramfs initramfs-linux-rpi-clockwork.img followkernel
+# ============================================================
+# CM4 (Compute Module 4)
+# ============================================================
+[cm4]
+# uConsole overlay for CM4 (select one)
+dtoverlay=clockworkpi-uconsole-cm4
+# Set battery capacity: (see notes below)
+#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000
+#dtoverlay=clockworkpi-uconsole-cm4,batt_uah=7000000,vnom_uv=3700000
 
-# Overclock SD card to 100 MHz (use only with fast cards)
+# KMS for Pi4
+dtoverlay=vc4-kms-v3d-pi4,cma-384
+
+# Kernel + initramfs (cm4)
+kernel=kernel8-cm4.img
+#initramfs initramfs-linux-rpi-clockwork-cm4.img followkernel
+
+# The firmware cannot auto-detect 64-bit mode. We MUST force it
+arm_64bit=1
+
+# Overclock SD (optional)
 #dtparam=sd_overclock=100
+
+# ============================================================
+# CM5 (Compute Module 5)
+# ============================================================
+[cm5]
+# uConsole overlay for CM5 (select one)
+dtoverlay=clockworkpi-uconsole-cm5
+# Set battery capacity: (see notes below)
+#dtoverlay=clockworkpi-uconsole-cm5,batt_uah=7000000
+#dtoverlay=clockworkpi-uconsole-cm5,batt_uah=7000000,vnom_uv=3700000
+
+# KMS for Pi5
+dtoverlay=vc4-kms-v3d-pi5,cma-384
+
+# Kernel + initramfs (cm5)
+kernel=kernel8-cm5.img
+#initramfs initramfs-linux-rpi-clockwork-cm5.img followkernel
+
+# Note:
+# - batt_uah is in microamp-hours (µAh)
+# - vnom_uv is in microvolts (µV)
+# - You can duplicate or comment/uncomment lines above depending
+#   on which configuration you want to test.
+# - Only the *last* overlay line for the same overlay is effective
+#   (the firmware uses the last occurrence).
+# ============================================================

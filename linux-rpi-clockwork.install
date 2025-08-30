@@ -20,14 +20,32 @@ correct_fstab() {
   fi
 }
 
-advertise_rpi5() {
-  if [[ -f /sys/firmware/devicetree/base/model ]]; then
-    if grep -a -q 5 /sys/firmware/devicetree/base/model; then
-      cat <<END
->>> 16 KB pages on RPi5 are provided by the linux-rpi-16k package
-END
-    fi
+# Set root=PARTUUID in /boot/cmdline.txt
+patch_cmdline() {
+  local cmd="/boot/cmdline.txt" dev partuuid
+
+  dev="$(findmnt -no SOURCE /)" || {
+    echo "!! Could not detect root device. Please set root=PARTUUID manually in $cmd"
+    return 0
+  }
+
+  partuuid="$(blkid -s PARTUUID -o value "$dev" 2>/dev/null)" || {
+    echo "!! Could not detect PARTUUID for $dev. Please set it manually in $cmd"
+    return 0
+  }
+
+  [ -f "$cmd" ] || {
+    echo "!! $cmd not found. Please edit it manually with the correct root=PARTUUID"
+    return 0
+  }
+
+  if grep -q '\broot=' "$cmd"; then
+    sed -E -i "s#\broot=[^ ]+#root=PARTUUID=${partuuid}#g" "$cmd"
+  else
+    sed -i "1s#^#root=PARTUUID=${partuuid} #" "$cmd"
   fi
+
+  echo ":: root=PARTUUID=${partuuid} set in $cmd"
 }
 
 post_install () {
@@ -35,9 +53,9 @@ post_install () {
 }
 
 post_upgrade() {
-  advertise_rpi5
   correct_fstab
   disable_cma
+  patch_cmdline
 
   if grep "^[^#]*[[:space:]]/boot" etc/fstab 2>&1 >/dev/null; then
     if ! grep "[[:space:]]/boot" etc/mtab 2>&1 >/dev/null; then

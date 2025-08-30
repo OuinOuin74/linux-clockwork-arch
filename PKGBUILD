@@ -1,9 +1,7 @@
-pkgbase=linux-rpi-clockwork
-_commit=eb6c9ef7df46c8bb124c3dc798628ffa1438dc55
+_commit=9e1f61ce6fa4e20e58dfa7a0dedb6444320a32f7
 _srcname=linux-${_commit}
-_kernelname=${pkgbase#linux}
-pkgver=6.16.3
-pkgrel=3
+pkgver=6.16.4
+pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -12,6 +10,7 @@ makedepends=(
   bc
   kmod
   inetutils
+  util-linux
 )
 options=('!strip')
 source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
@@ -22,16 +21,40 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "drivers.zip"
         linux.preset
 )
-md5sums=('70b2572ac1996daa1bee8156b60bda49'
-         '1c7205600f44209b09ba711fe65f7a81'
-         '9a0942b8700da95be461a99c98786088'
-         '01d0aed8918fe5e2f4a96cd634b8a749'
+md5sums=('21522d198b630f77dda657be15296360'
+         'a55f82e4f8a21264ff848284cc6dfc6b'
+         'b1fbad86a65d91f5f7c7c8ddd946a821'
+         '1ba0b22f58e5663046c55b88dfe7d3fc'
          '597431f2afb5e0c40e87ef0762784569'
          '1b3d56962e96aaf497d3ee73be1d2677'
          '5019cc9c926c7300ce46999beb3be5c8')
 
+# --- BEGIN: model selector (cm4/cm5) -----------------------------------------
+: "${MODEL:=cm4}"   # Default to cm4 if not set
+
+# Root pkgbase without model suffix
+_pkgbase_root="linux-rpi-clockwork"
+
+case "$MODEL" in
+  cm4)
+    pkgbase="${_pkgbase_root}-cm4"
+    _defconfig="bcm2711_defconfig"
+    _localver="-cm4"
+    ;;
+  cm5)
+    pkgbase="${_pkgbase_root}-cm5"
+    _defconfig="bcm2712_defconfig"
+    _localver="-cm5"
+    ;;
+  *)
+    echo "Unknown MODEL='$MODEL' (use: cm4 | cm5)" >&2
+    exit 2
+    ;;
+esac
+# --- END: model selector -----------------------------------------------------
+
 # setup vars
-_kernel=kernel8.img KARCH=arm64 _image=Image
+_kernel="kernel8-${MODEL}.img" KARCH=arm64 _image=Image
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -49,7 +72,7 @@ prepare() {
   cp -v "$srcdir"/overlays/* arch/arm/boot/dts/overlays/
 
   make mrproper
-  make bcm2711_defconfig
+  make "${_defconfig}"
 
   echo "Setting version..."
   echo "-$pkgrel" > localversion.10-pkgrel
@@ -87,8 +110,10 @@ _package() {
     linux
     linux-rpi-16k
     uboot-raspberrypi
+    linux-rpi-clockwork-cm4
+    linux-rpi-clockwork-cm5
   )
-  install=${pkgname}.install
+  install=linux-rpi-clockwork.install
   backup=(
     boot/config.txt
     boot/cmdline.txt
