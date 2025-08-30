@@ -37,33 +37,33 @@ jobs:
         with:
           platforms: arm64
 
-      - name: Build with makepkg inside Arch ARM
-        uses: uraimo/run-on-arch-action@v3
+      - name: Build (MODEL=${{ matrix.model }})
+        uses: addnab/docker-run-action@v3
         with:
-          arch: aarch64
-          distro: archarm_latest
-          dockerRunArgs: |
-            -v ${{ github.workspace }}:/work
-          githubToken: ${{ github.token }}
-          setup: |
-            set -euxo pipefail
-            # Keyring first (Arch Linux ARM container)
-            pacman -Sy --noconfirm archlinuxarm-keyring
-            # Update + deps needed by your PKGBUILD (no yay/paru)
-            pacman -Syu --noconfirm base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
-            useradd -m build
-            echo 'build ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/build
-            chown -R build:build /work
+          image: agners/archlinuxarm-arm64v8:latest
+          options: --platform linux/arm64 -v ${{ github.workspace }}:/work
           run: |
             set -euxo pipefail
-            cd /work
+            # Ensure pacman is ready (Arch Linux ARM containers)
+            pacman-key --init
+            pacman-key --populate archlinuxarm || true
+            pacman -Sy --noconfirm archlinuxarm-keyring
+            # Update and install build deps (no AUR helper)
+            pacman -Syu --noconfirm \
+              base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux which
+            # Create unprivileged build user
+            useradd -m build || true
+            echo 'build ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/90-build
+            chown -R build:build /work
+            # Use ccache (stored in repo to persist across steps of this job)
+            su build -c 'mkdir -p /work/.ccache'
             export CCACHE_DIR=/work/.ccache
-            mkdir -p "$CCACHE_DIR"
-            # Your PKGBUILD already supports MODEL
-            sudo -u build env MODEL=${{ matrix.model }} makepkg -sc --noconfirm
+            # Build with your PKGBUILD (reads MODEL in env)
+            su build -c 'cd /work && env MODEL=${{ matrix.model }} makepkg -sc --noconfirm'
+            # Collect artifacts
             mkdir -p /work/out/${{ matrix.model }}
-            mv ./*.pkg.tar.* /work/out/${{ matrix.model }}/ || true
-            # Optional tiny log
+            mv /work/*.pkg.tar.* /work/out/${{ matrix.model }}/ || true
+            # Save a tiny log (optional)
             : > /work/out/${{ matrix.model }}/build-${{ matrix.model }}.log
 
       - name: Upload artifacts
