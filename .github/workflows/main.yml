@@ -41,21 +41,20 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Arch package (MODEL=${{ matrix.model }})
-        # Runs makepkg inside an Arch container; we inject MODEL env var
         uses: Menci/build-archlinux-package@beta-v1
         env:
-          MODEL: ${{ matrix.model }}           # <- read by your PKGBUILD
-          CCACHE_DIR: /github/home/.ccache     # <- share ccache with container
+          MODEL: ${{ matrix.model }}
+          CCACHE_DIR: /github/home/.ccache
         with:
           docker-image: menci/aur-builder-archlinux:latest
-          platform: linux/arm64                # aarch64 build via QEMU
-          pkgbuild-directory: .                # PKGBUILD is at repo root
-          # Ensure unzip/bsdtar are available for your local ZIP sources
+          platform: linux/arm64
+          pkgbuild-directory: .
           extra-build-dependencies: >-
             base-devel git ccache unzip bsdtar bc flex bison pahole inetutils kmod util-linux
           target-directory: ${{ runner.temp }}/out/${{ matrix.model }}
           packager: 'uConsole CI <noreply@example.com>'
-          build-log-file: ${{ runner.temp }}/out/${{ matrix.model }}/build-${{ matrix.model }}.log
+          # write log to /tmp: always exists
+          build-log-file: /tmp/build-${{ matrix.model }}.log
 
       - name: Upload artifacts (packages + logs)
         uses: actions/upload-artifact@v4
