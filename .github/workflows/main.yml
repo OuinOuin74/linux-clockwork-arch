@@ -46,7 +46,7 @@ jobs:
           MODEL: ${{ matrix.model }}
           CCACHE_DIR: /github/home/.ccache
         with:
-          docker-image: menci/aur-builder-archlinux:latest
+          docker-image: menci/archlinuxarm:latest
           platform: linux/arm64
           pkgbuild-directory: .
           extra-build-dependencies: >-
