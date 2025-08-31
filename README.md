@@ -35,6 +35,7 @@ Compared to the vanilla Raspberry Pi 6.16 kernel, this custom build includes:
 - **Headphone amplifier switch driver**: handles automatic speaker cutoff when headphones are plugged in
 - **Modified `defconfig`**:
   - Landlock enabled (required by `pacman` on Arch Linux)
+  - F2FS compression enabled (lz4 + zstd)
   - Other small adjustments for uConsole compatibility
 
 ## Installation
