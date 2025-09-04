@@ -1,7 +1,7 @@
 _commit=9e1f61ce6fa4e20e58dfa7a0dedb6444320a32f7
 _srcname=linux-${_commit}
 pkgver=6.16.4
-pkgrel=2
+pkgrel=3
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -22,11 +22,11 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         linux.preset
 )
 md5sums=('21522d198b630f77dda657be15296360'
-         'a55f82e4f8a21264ff848284cc6dfc6b'
-         '5f5dbac969820fe0ee509a0894dd7380'
+         'e46eff7b6e8682b472459355e26ed645'
+         '71ba2c5e8ef21ca87933a53984b34067'
          '1ba0b22f58e5663046c55b88dfe7d3fc'
-         '597431f2afb5e0c40e87ef0762784569'
-         '1b3d56962e96aaf497d3ee73be1d2677'
+         '6dfffc1657cc5db1414831f86fe9de6e'
+         'f8374f44275c8ee9f44316c7a1fd8118'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # --- BEGIN: model selector (cm4/cm5) -----------------------------------------

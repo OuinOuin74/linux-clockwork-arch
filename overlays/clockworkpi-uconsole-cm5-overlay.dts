@@ -48,7 +48,7 @@
 				/* PMIC IRQ on RP1 GPIO2, falling-edge */
 				interrupt-parent = <&rp1_gpio>;
 				interrupts = <2 8>;
-				irq-gpios = <&rp1_gpio 2 GPIO_ACTIVE_LOW>;
+				irq-gpios = <&rp1_gpio 2 GPIO_ACTIVE_HIGH>;
 
 				regulators {
 					x-powers,dcdc-freq = <3000>;
@@ -227,7 +227,7 @@
 				reg = <0>;
 
 				/* Panel reset on RP1 GPIO8, active-low */
-				reset-gpio = <&rp1_gpio 8 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&rp1_gpio 8 GPIO_ACTIVE_LOW>;
 
 				backlight = <&ocp8178_backlight>;
 				rotation = <90>;
