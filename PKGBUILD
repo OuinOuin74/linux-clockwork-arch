@@ -1,4 +1,4 @@
-_commit=9e1f61ce6fa4e20e58dfa7a0dedb6444320a32f7
+_commit=1ac513c9cd241360fafe57861d98b65a89cd5e5a
 _srcname=linux-${_commit}
 pkgver=6.16.4
 pkgrel=3
@@ -21,7 +21,7 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "drivers.zip"
         linux.preset
 )
-md5sums=('21522d198b630f77dda657be15296360'
+md5sums=('bbf31a0d9ce5763c99f8dc900d5b9163'
          'e46eff7b6e8682b472459355e26ed645'
          '71ba2c5e8ef21ca87933a53984b34067'
          '1ba0b22f58e5663046c55b88dfe7d3fc'
@@ -145,6 +145,13 @@ _package() {
   cp arch/$KARCH/boot/dts/overlays/README "${pkgdir}/boot/overlays"
   install -m644 ../config.txt "${pkgdir}/boot"
   install -m644 ../cmdline.txt "${pkgdir}/boot"
+
+  # CM5-only: brcmfmac workarounds via modprobe.d
+  if [[ "$MODEL" == "cm5" ]]; then
+    install -d "${pkgdir}/usr/lib/modprobe.d"
+    echo "options brcmfmac roamoff=1 feature_disable=0x282000" \
+        > "${pkgdir}/usr/lib/modprobe.d/99-brcmfmac-cm5.conf"
+  fi
 
   # sed expression for following substitutions
   local _subst="
