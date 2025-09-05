@@ -148,11 +148,10 @@ _package() {
 
   # CM5-only: brcmfmac workarounds via modprobe.d
   if [[ "$MODEL" == "cm5" ]]; then
-    install -d "${pkgdir}/usr/lib/modprobe.d"
-    echo "options brcmfmac roamoff=1 feature_disable=0x282000" \
-        > "${pkgdir}/usr/lib/modprobe.d/99-brcmfmac-cm5.conf"
+    echo "options brcmfmac roamoff=1 feature_disable=0x282000" |
+      install -Dm644 /dev/stdin "${pkgdir}/usr/lib/modprobe.d/99-brcmfmac-cm5.conf"
   fi
-
+  
   # sed expression for following substitutions
   local _subst="
     s|%PKGBASE%|${pkgbase}|g
