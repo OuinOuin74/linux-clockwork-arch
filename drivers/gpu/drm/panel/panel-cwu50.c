@@ -25,15 +25,15 @@ struct cwu50 {
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 61111,
-	.hdisplay = 720,
-	.hsync_start = 720 + 30,
-	.hsync_end = 720 + 30 + 15,
-	.htotal = 720 + 30 + 15 + 15,
-	.vdisplay = 1280,
-	.vsync_start = 1280 + 8,
-	.vsync_end = 1280 + 8 + 2,
-	.vtotal = 1280 + 8 + 2 + 16,
+        .clock = 61020,
+        .hdisplay = 720,
+        .hsync_start = 720 + 18,
+        .hsync_end = 720 + 18 + 18,
+        .htotal = 720 + 18 + 18 + 18,
+        .vdisplay = 1280,
+        .vsync_start = 1280 + 8,
+        .vsync_end = 1280 + 8 + 2,
+        .vtotal = 1280 + 8 + 2 + 16,
 };
 
 static inline struct cwu50 *panel_to_cwu50(struct drm_panel *panel)

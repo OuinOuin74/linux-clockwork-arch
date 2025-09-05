@@ -48,7 +48,7 @@
 				/* PMIC IRQ on RP1 GPIO2, falling-edge */
 				interrupt-parent = <&rp1_gpio>;
 				interrupts = <2 8>;
-				irq-gpios = <&rp1_gpio 2 GPIO_ACTIVE_HIGH>;
+				irq-gpios = <&rp1_gpio 2 GPIO_ACTIVE_LOW>;
 
 				regulators {
 					x-powers,dcdc-freq = <3000>;
@@ -214,7 +214,7 @@
 
 			/* These rates work with the CWU50 panel; adjust if needed */
 			assigned-clocks = <&rp1_clocks RP1_CLK_MIPI1_DSI_BYTECLOCK>, <&rp1_clocks RP1_CLK_MIPI1_DPI>;
-			assigned-clock-rates = <45833333>, <61111240>;
+			assigned-clock-rates = <45765000>, <61020000>;
 
 			port {
 				dsi_out_port: endpoint {

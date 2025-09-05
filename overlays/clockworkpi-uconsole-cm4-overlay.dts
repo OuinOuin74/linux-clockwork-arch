@@ -1,6 +1,8 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
+
 /{
 	compatible = "brcm,bcm2835";
 
@@ -26,7 +28,8 @@
 		__overlay__ {
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi4_pins &spi4_cs_pins>;
-			cs-gpios = <&gpio 4 1>;
+			/* SPI chip select is typically active-low */
+			cs-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
 			status = "okay";
 
 			spidev4_0: spidev@0 {
@@ -83,7 +86,7 @@
 			bootargs = "8250.nr_uarts=1";
 		};
 	};
-	
+
 	fragment@5 {
 		target = <&pcie0>;
 		__overlay__ {
@@ -112,9 +115,14 @@
 				#interrupt-cells = <1>;
 				compatible = "x-powers,axp221";
 				reg = <0x34>; /* i2c address */
+
+				/* Interrupt line description:
+				 * "interrupts = <2 8>;" indicates GPIO2, falling edge (8).
+				 * Keep irq-gpios consistent with the electrical active level.
+				 */
 				interrupt-parent = <&gpio>;
 				interrupts = <2 8>;  /* IRQ_TYPE_EDGE_FALLING */
-				irq-gpios = <&gpio 2 0>;
+				irq-gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 
 				regulators {
 
@@ -193,17 +201,17 @@
 				constant-charge-current-max-microamp = <2100000>;
 				voltage-max-design-microvolt = <4200000>;
 				re-charge-voltage-microvolt = <4000000>;
-				// adjust the following params according to your battery specs
-				voltage-min-design-microvolt = <3100000>;
-				charge-full-design-microamp-hours = <6700000>; // 2x3350mAh fallback value
+				/* Adjust the following params according to your battery specs */
+				voltage-min-design-microvolt = <2900000>;
+				charge-full-design-microamp-hours = <6700000>; /* 2x3350mAh fallback value */
 				nominal-microvolt = <3700000>;
 			};
 		};
 	};
-	
+
 	__overrides__ {
-    		batt_uah = <&battery>,"charge-full-design-microamp-hours:0";
-    		vnom_uv  = <&battery>,"nominal-microvolt:0";
+		batt_uah = <&battery>,"charge-full-design-microamp-hours:0";
+		vnom_uv  = <&battery>,"nominal-microvolt:0";
 	};
 
 	fragment@11 {
@@ -222,9 +230,15 @@
 			panel_cwu50: panel@0 {
 				compatible = "cw,cwu50";
 				reg = <0>;
-				reset-gpio = <&gpio 8 1>;
+
+				/* Panel reset line: active-low */
+				reset-gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+
 				backlight = <&ocp8178_backlight>;
-				panel-orientation = "right-up";
+
+				/* DRM helper reads "rotation" (u32, CCW degrees) */
+				rotation = <90>;
+
 				iovcc-supply = <&reg_aldo2>;
 
 				port {
@@ -241,27 +255,34 @@
 		__overlay__  {
 			ocp8178_backlight: backlight@0 {
 				compatible = "ocp8178-backlight";
-				backlight-control-gpios = <&gpio 9 0>;
+
+				/* Backlight control: active-high enable */
+				backlight-control-gpios = <&gpio 9 GPIO_ACTIVE_HIGH>;
+
 				default-brightness = <5>;
 			};
 		};
 	};
+
 	fragment@13 {
-    		target-path = "/";
-    		__overlay__ {
-        		audio_amplifier: audio-amplifier {
-            			compatible = "simple-amplifier-switch";
-            			/* ensure the pins are muxed + pulled as expected */
+		target-path = "/";
+		__overlay__ {
+			audio_amplifier: audio-amplifier {
+				compatible = "simple-amplifier-switch";
+
+				/* Ensure the pins are muxed + pulled as expected */
 				pinctrl-names = "default";
 				pinctrl-0 = <&jack_amp_pins>;
 
-            			/* GPIO10 = jack detect, actif bas (1 = ACTIVE_LOW) */
-            			sw-gpios = <&gpio 10 1>;
-				/* GPIO11 = enable HP, actif haut (0 = ACTIVE_HIGH) */
-            			outputs-gpios = <&gpio 11 0>;
-        		};
-    		};
+				/* GPIO10 = jack detect, active-low */
+				sw-gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
+
+				/* GPIO11 = enable HP (amplifier), active-high */
+				outputs-gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
+			};
+		};
 	};
+
 	fragment@14 {
 		target = <&gpio>;
 		__overlay__ {
@@ -272,7 +293,8 @@
 			};
 		};
 	};
-	/* === NEW: enable UHS on SD host and raise max-frequency to 100 MHz === */
+
+	/* === Enable UHS on SD host and raise max-frequency to 100 MHz === */
 	fragment@15 {
 		target-path = "/emmc2bus/mmc@7e340000";
 		__overlay__ {
@@ -284,3 +306,4 @@
 		};
 	};
 };
+
