@@ -162,6 +162,13 @@
 						regulator-max-microvolt = <3300000>;
 						regulator-name = "dldo4";
 					};
+					
+					reg_dcdc3: dcdc3 {
+						regulator-always-on;
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-name = "sys-1v8";
+					};
 
 				};
 
@@ -239,6 +246,7 @@
 				/* DRM helper reads "rotation" (u32, CCW degrees) */
 				rotation = <90>;
 
+				vci-supply = <&reg_dcdc3>;
 				iovcc-supply = <&reg_aldo2>;
 
 				port {
