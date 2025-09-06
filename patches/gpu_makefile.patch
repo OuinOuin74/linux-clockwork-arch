@@ -1,7 +1,8 @@
---- /drivers/gpu/drm/panel/Makefile	Fri Aug  1 08:41:27 2025
-+++ /drivers/gpu/drm/panel/Makefile	Fri Aug  1 10:42:31 2025
-@@ -115,3 +115,4 @@
+--- a/drivers/gpu/drm/panel/Makefile
++++ b/drivers/gpu/drm/panel/Makefile
+@@ -115,3 +115,5 @@
  obj-$(CONFIG_DRM_PANEL_WAVESHARE_TOUCHSCREEN_V2) += panel-waveshare-dsi-v2.o
  obj-$(CONFIG_DRM_PANEL_WIDECHIPS_WS2401) += panel-widechips-ws2401.o
  obj-$(CONFIG_DRM_PANEL_XINPENG_XPP055C272) += panel-xinpeng-xpp055c272.o
-+obj-$(CONFIG_DRM_PANEL_CWU50) += panel-cwu50.o
++obj-$(CONFIG_DRM_PANEL_CWU50_CM4) += panel-cwu50-cm4.o
++obj-$(CONFIG_DRM_PANEL_CWU50_CM5) += panel-cwu50-cm5.o

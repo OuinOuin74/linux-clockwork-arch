@@ -235,7 +235,7 @@
 			};
 
 			panel_cwu50: panel@0 {
-				compatible = "cw,cwu50";
+				compatible = "cw,cwu50-cm4";
 				reg = <0>;
 
 				/* Panel reset line: active-low */

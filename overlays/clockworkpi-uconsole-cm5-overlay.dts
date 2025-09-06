@@ -223,7 +223,7 @@
 			};
 
 			panel_cwu50: panel@0 {
-				compatible = "cw,cwu50";
+				compatible = "cw,cwu50-cm5";
 				reg = <0>;
 
 				/* Panel reset on RP1 GPIO8, active-low */
