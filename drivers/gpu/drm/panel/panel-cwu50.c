@@ -645,7 +645,7 @@ static void cwu50_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id cwu50_of_match[] = { { .compatible =
-								"cw,cwu50-cm5" },
+								"cw,cwu50" },
 						      { /* sentinel */ } };
 MODULE_DEVICE_TABLE(of, cwu50_of_match);
 
