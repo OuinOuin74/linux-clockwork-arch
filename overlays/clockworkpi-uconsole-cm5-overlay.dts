@@ -214,7 +214,7 @@
 
 			/* These rates work with the CWU50 panel; adjust if needed */
 			assigned-clocks = <&rp1_clocks RP1_CLK_MIPI1_DSI_BYTECLOCK>, <&rp1_clocks RP1_CLK_MIPI1_DPI>;
-			assigned-clock-rates = <45765000>, <61020000>;
+			assigned-clock-rates = <45833333>, <61111240>;
 
 			port {
 				dsi_out_port: endpoint {
