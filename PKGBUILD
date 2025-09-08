@@ -26,7 +26,7 @@ md5sums=('ec8b1d5c63db8f7d0d50186a6d1993de'
          '71ba2c5e8ef21ca87933a53984b34067'
          '1ba0b22f58e5663046c55b88dfe7d3fc'
          '4d00e976b844a652bd8ed75758128ca6'
-         'd080ade7ad509722a86660a45a481fc1'
+         'dd678d5a85fc0bbb593db9a073a7d65a'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # --- BEGIN: model selector (cm4/cm5) -----------------------------------------
