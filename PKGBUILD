@@ -1,7 +1,7 @@
-_commit=1ac513c9cd241360fafe57861d98b65a89cd5e5a
+_commit=47a883c76df7dfad31483e1d3374dd3e2f76eaa5
 _srcname=linux-${_commit}
-pkgver=6.16.4
-pkgrel=4
+pkgver=6.16.5
+pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -21,12 +21,12 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "drivers.zip"
         linux.preset
 )
-md5sums=('bbf31a0d9ce5763c99f8dc900d5b9163'
+md5sums=('ec8b1d5c63db8f7d0d50186a6d1993de'
          'e46eff7b6e8682b472459355e26ed645'
          '71ba2c5e8ef21ca87933a53984b34067'
          '1ba0b22f58e5663046c55b88dfe7d3fc'
          '4d00e976b844a652bd8ed75758128ca6'
-         'f8374f44275c8ee9f44316c7a1fd8118'
+         'd080ade7ad509722a86660a45a481fc1'
          '5019cc9c926c7300ce46999beb3be5c8')
 
 # --- BEGIN: model selector (cm4/cm5) -----------------------------------------
