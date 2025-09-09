@@ -340,20 +340,10 @@ static int prepare_sequence(struct drm_panel *panel)
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0); /* deassert */
 	msleep(5);
 
-	/* Enabe tearing mode: send TE (tearing effect) at VBLANK */
-	/* JD9365D seems need a parameter for this command */
-	// err = mipi_dsi_dcs_write_buffer(dsi, (u8[]){ 0x35, 0x00 }, 2);
-	err = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	if (err < 0) {
-		dev_err(ctx->dev, "failed to enable vblank TE (%d)\n", err);
-		goto disable_vci;
-	}
-
 	/* Run the vendor init strictly in Low-Power mode */
 	saved_flags = dsi->mode_flags;
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 	err = cwu50_init_sequence(ctx);
-	dsi->mode_flags = saved_flags;
 	
 	if (err) {
 		dev_err(ctx->dev, "failed to send initialize sequence (%d)\n", err);
@@ -368,8 +358,8 @@ static int prepare_sequence(struct drm_panel *panel)
 		goto disable_vci;
 	}
 
-	/* tSLPOUT 120ms */
-	msleep(120);
+	/* tSLPOUT 200ms */
+	msleep(200);
 
 	/* dpon */
 	dev_info(ctx->dev, "dpon");
@@ -380,7 +370,10 @@ static int prepare_sequence(struct drm_panel *panel)
 	}
 
 	/* tDOND >= 10ms */
-	msleep(20);
+	msleep(100);
+
+	/* Restore flags only now: HS video can start safely */
+	dsi->mode_flags = saved_flags;
 
 	return 0;
 
@@ -463,6 +456,15 @@ static int cwu50_enable(struct drm_panel *panel)
 
 	dev_info(ctx->dev, "enable panel");
 	backlight_enable(ctx->backlight);
+
+	/* Enabe tearing mode: send TE (tearing effect) at VBLANK */
+	/* JD9365D seems need a parameter for this command */
+	// err = mipi_dsi_dcs_write_buffer(dsi, (u8[]){ 0x35, 0x00 }, 2);
+	err = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	if (err < 0) {
+		dev_err(ctx->dev, "failed to enable vblank TE (%d)\n", err);
+		goto disable_vci;
+	}
 
 	msleep(20);
 	err = mipi_dsi_dcs_get_power_mode(dsi, &response);

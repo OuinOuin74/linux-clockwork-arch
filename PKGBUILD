@@ -1,7 +1,7 @@
-_commit=47a883c76df7dfad31483e1d3374dd3e2f76eaa5
+_commit=0c77a1db968ef840ac05be8a1db0355d3b4f0bb9
 _srcname=linux-${_commit}
 pkgver=6.16.5
-pkgrel=1
+pkgrel=2
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -21,15 +21,15 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "drivers.zip"
         linux.preset
 )
-md5sums=('ec8b1d5c63db8f7d0d50186a6d1993de'
+md5sums=('828b277c939153f5725fc308368f41c1'
          'e46eff7b6e8682b472459355e26ed645'
          '71ba2c5e8ef21ca87933a53984b34067'
          '1ba0b22f58e5663046c55b88dfe7d3fc'
          'e9636962e3b2a25c3bb50919ed84b4a5'
-         'ec292ba23e233b5e272f619e46391d28'
+         '108bc082e56dcfc66fb203fea1b6e1f1'
          '5019cc9c926c7300ce46999beb3be5c8')
 
-# --- BEGIN: model selector (cm4/cm5) -----------------------------------------
+# --- BEGIN: model selector (cm4/cm5) ---
 : "${MODEL:=cm4}"   # Default to cm4 if not set
 
 # Root pkgbase without model suffix
@@ -51,7 +51,7 @@ case "$MODEL" in
     exit 2
     ;;
 esac
-# --- END: model selector -----------------------------------------------------
+# --- END: model selector ---
 
 # setup vars
 _kernel="kernel8-${MODEL}.img" KARCH=arm64 _image=Image
