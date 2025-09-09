@@ -463,7 +463,6 @@ static int cwu50_enable(struct drm_panel *panel)
 	err = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (err < 0) {
 		dev_err(ctx->dev, "failed to enable vblank TE (%d)\n", err);
-		goto disable_vci;
 	}
 
 	msleep(20);
