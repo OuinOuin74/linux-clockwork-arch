@@ -249,6 +249,8 @@
 				vci-supply = <&reg_dcdc3>;
 				iovcc-supply = <&reg_aldo2>;
 
+				status = "okay";
+
 				port {
 					panel_dsi_port: endpoint {
 						remote-endpoint = <&dsi_out_port>;
