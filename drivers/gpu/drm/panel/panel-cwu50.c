@@ -31,6 +31,9 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 1280 + 8,
 	.vsync_end = 1280 + 8 + 2,
 	.vtotal = 1280 + 8 + 2 + 16,
+	/* Physical panel size (used for DPI / scaling in userspace) */
+	.width_mm = 62,   /* active width in millimeters */
+	.height_mm = 110, /* active height in millimeters */
 };
 
 static inline struct cwu50 *panel_to_cwu50(struct drm_panel *panel)
