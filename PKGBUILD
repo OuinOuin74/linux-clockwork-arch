@@ -1,7 +1,7 @@
 _commit=0c77a1db968ef840ac05be8a1db0355d3b4f0bb9
 _srcname=linux-${_commit}
 pkgver=6.16.5
-pkgrel=2
+pkgrel=3
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -24,7 +24,7 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
 md5sums=('828b277c939153f5725fc308368f41c1'
          'e46eff7b6e8682b472459355e26ed645'
          '71ba2c5e8ef21ca87933a53984b34067'
-         '1ba0b22f58e5663046c55b88dfe7d3fc'
+         '2614c5ccca9d677aff92139031d1a01c'
          'e9636962e3b2a25c3bb50919ed84b4a5'
          'cc47a01051f502589dadfa5c6be2216b'
          '5019cc9c926c7300ce46999beb3be5c8')
