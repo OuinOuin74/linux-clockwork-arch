@@ -1,7 +1,7 @@
-_commit=0c77a1db968ef840ac05be8a1db0355d3b4f0bb9
+_commit=dc03a3d13bc332d5bc1af78353dbb65449f8954e
 _srcname=linux-${_commit}
-pkgver=6.16.5
-pkgrel=3
+pkgver=6.16.7
+pkgrel=1
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
@@ -21,7 +21,7 @@ source=("linux-$pkgver-${_commit:0:10}.tar.gz::https://github.com/raspberrypi/li
         "drivers.zip"
         linux.preset
 )
-md5sums=('828b277c939153f5725fc308368f41c1'
+md5sums=('e01729a5f6877daae2d17ec2402123fb'
          'e46eff7b6e8682b472459355e26ed645'
          '71ba2c5e8ef21ca87933a53984b34067'
          '2d053b8b28ddbef1ae56b047d147f174'
