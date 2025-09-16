@@ -1,0 +1,104 @@
+name: Build kernel for CM4/CM5 boards
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+  
+env:
+  MAKEFLAGS: -j$(nproc)
+  
+jobs:
+  build:
+    name: Build kernel for ${{ matrix.model }}
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: lopsided/archlinux-arm64v8:devel
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: cm4
+          - model: cm5
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        
+      - name: Update pacman and install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel bc kmod inetutils util-linux
+
+      - name: Create non-root builder
+        run: |
+          useradd -m -s /bin/bash builder || true
+          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+          chown -R builder:builder .
+          mkdir -p dist
+          chown -R builder:builder dist
+
+      - name: Build with makepkg
+        run: |
+          sudo -u builder bash -lc '
+            set -euxo pipefail
+
+            # Clean previous outputs
+            rm -f *.pkg.tar.* || true
+            rm -rf src pkg || true
+
+            # Select target model
+            export MODEL="${{ matrix.model }}"
+
+            # Build package
+            makepkg -s --noconfirm --skippgpcheck -f
+
+            # Copy artifacts
+            shopt -s nullglob
+            cp -v *.pkg.tar.xz dist/
+          '
+
+      - name: List artifacts
+        run: ls -lh dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ matrix.model }}-pkgs
+          path: dist/*.pkg.tar.xz
+          if-no-files-found: error
+          retention-days: 14
+          
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download CM4 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-cm4-pkgs
+          path: cm4
+
+      - name: Download CM5 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-cm5-pkgs
+          path: cm5
+
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}         # ex: v6.16.5-3
+          name: uConsole kernel ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            cm4/*.pkg.tar.xz
+            cm4/SHA256SUMS
+            cm5/*.pkg.tar.xz
+            cm5/SHA256SUMS
