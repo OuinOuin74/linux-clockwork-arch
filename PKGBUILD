@@ -1,7 +1,7 @@
 _commit=dc03a3d13bc332d5bc1af78353dbb65449f8954e
 _srcname=linux-${_commit}
 pkgver=6.16.7
-pkgrel=1
+pkgrel=2
 pkgdesc='Linux'
 url="https://github.com/raspberrypi/linux"
 arch=(aarch64)
