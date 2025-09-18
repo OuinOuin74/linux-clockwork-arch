@@ -341,7 +341,7 @@ static int prepare_sequence(struct drm_panel *panel)
 	/* tRESETL=10us */
 	/* tRESETH >= 5ms */
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0); /* deassert */
-	msleep(5);
+	msleep(10);
 
 	/* Run the vendor init strictly in Low-Power mode */
 	saved_flags = dsi->mode_flags;
@@ -363,6 +363,14 @@ static int prepare_sequence(struct drm_panel *panel)
 
 	/* tSLPOUT 200ms */
 	msleep(200);
+	
+    /* Explicitly set pixel format to match MIPI_DSI_FMT_RGB888 (24bpp). */
+    /* Using 0x77 for 24bpp per JD9365D's COLMOD. */
+    err = mipi_dsi_dcs_set_pixel_format(dsi, 0x77);
+    if (err) {
+    	dev_err(ctx->dev, "failed to set pixel format (COLMOD) (%d)\n", err);
+    	goto disable_vci;
+    }
 
 	/* dpon */
 	dev_info(ctx->dev, "dpon");
@@ -373,7 +381,7 @@ static int prepare_sequence(struct drm_panel *panel)
 	}
 
 	/* tDOND >= 10ms */
-	msleep(100);
+	msleep(20);
 
 	/* Restore flags only now: HS video can start safely */
 	dsi->mode_flags = saved_flags;
