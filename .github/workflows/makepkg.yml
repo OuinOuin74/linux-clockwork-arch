@@ -28,6 +28,11 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         
+      - name: Disable pacman sandbox (Landlock) in CI container
+        run: |
+          # pacman 7 sandbox can fail in GitHub-hosted containers (Landlock EPERM)
+          sed -i 's/^[#[:space:]]*DisableSandbox/DisableSandbox/' /etc/pacman.conf
+          
       - name: Update pacman and install dependencies
         run: |
           pacman -Syu --noconfirm
